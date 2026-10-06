@@ -10,6 +10,7 @@ or decided (decisions go to `DECISIONS.md`).
 - Legacy ONNX engines: remove `transcribe-rs` engines and the hardcoded legacy model table. Check the 5 old Whisper entries in that table.
 - Mac build: minimal GitHub Actions workflow on a macOS runner (Apple Silicon, macOS 27) producing the `.app`/`.dmg`. Needs a GitHub repo.
 - App signing: ad-hoc signing resets Accessibility/Microphone grants each build. Consider a self-signed certificate in CI or an Apple Developer ID.
+- Onboarding loop: on a first run with permissions already granted (e.g. after a reinstall), the permission check effect in `AccessibilityOnboarding.tsx` re-runs on every parent render and never settles. Seen in the UI preview; confirm on the Mac.
 - Rebranding: name, identifier `com.pais.handy`, icons, Handy links, User-Agent.
 
 ## Decide later
