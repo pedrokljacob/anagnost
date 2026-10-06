@@ -2,11 +2,10 @@ use crate::audio_toolkit::{
     apply_custom_words, detect_output_language, normalize_transcription_output,
     remove_filler_words, OutputLanguageEvidence,
 };
-use crate::chinese_script::{convert_chinese_script, ChineseVariety};
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::model::{EngineType, ModelManager};
 use crate::settings::{
-    get_settings, AppSettings, ChineseScript, ModelUnloadTimeout, OrtAcceleratorSetting,
+    get_settings, AppSettings, ModelUnloadTimeout, OrtAcceleratorSetting,
     TranscribeAcceleratorSetting,
 };
 use anyhow::Result;
@@ -954,7 +953,6 @@ impl TranscriptionManager {
         // (and thus the engine) for its lifetime, so the feed/finalize loop
         // lives in a labeled block — when it exits, the borrow is released and
         // the engine can be moved into return_engine().
-        let mut preview_script = PreviewScript::new(settings.chinese_script, &output_language);
         let mut finalize_reply: Option<mpsc::Sender<Option<FinalizedStreamText>>> = None;
         let mut finalize_result: Option<Option<FinalizedStreamText>> = None;
         let stream_started = 'stream: {
@@ -1004,12 +1002,7 @@ impl TranscriptionManager {
                                 if update.committed_changed || update.tentative_changed {
                                     let text = stream.text();
                                     perf.record_emit();
-                                    let (committed, tentative) = preview_script.convert(
-                                        &text.committed,
-                                        &text.tentative,
-                                        &languages,
-                                    );
-                                    self.emit_stream_text(&committed, &tentative);
+                                    self.emit_stream_text(&text.committed, &text.tentative);
                                 }
                                 perf.maybe_log();
                             }
@@ -1773,17 +1766,14 @@ fn post_process_transcription_text(
     output_language: &OutputLanguageEvidence,
     supported_languages: &[String],
 ) -> String {
-    let converts_script = settings.chinese_script != ChineseScript::AsTranscribed;
     fail_open_text_transform(raw, |raw| {
         // Last-resort language evidence: confidence-gated detection from the
         // transcribed text itself, constrained to the model's languages. Only
-        // consulted when it can change the outcome (built-in gated fillers or
-        // Chinese script conversion).
+        // consulted when it can change the outcome (built-in gated fillers).
         let output_language = match output_language {
             OutputLanguageEvidence::Unknown
-                if converts_script
-                    || (settings.filler_word_removal_enabled
-                        && settings.custom_filler_words.is_none()) =>
+                if settings.filler_word_removal_enabled
+                    && settings.custom_filler_words.is_none() =>
             {
                 match detect_output_language(&raw, supported_languages) {
                     Some(language) => {
@@ -1794,19 +1784,6 @@ fn post_process_transcription_text(
                 }
             }
             other => other.clone(),
-        };
-
-        // Convert the script before custom words so they match in the script
-        // the user writes in. Only output known to be Chinese is touched, so
-        // e.g. Japanese kanji are never rewritten.
-        let variety = output_language
-            .language()
-            .and_then(ChineseVariety::from_language);
-        let raw = match variety {
-            Some(variety) if converts_script => {
-                convert_chinese_script(&raw, variety, settings.chinese_script)
-            }
-            _ => raw,
         };
 
         let corrected = if !settings.custom_words.is_empty() && !custom_words_already_prompted {
@@ -1828,65 +1805,6 @@ fn post_process_transcription_text(
 
         normalize_transcription_output(&without_fillers)
     })
-}
-
-/// Characters to wait for before detecting the preview's language. A lone
-/// Chinese character reads as Mandarin, but Japanese often opens with kanji
-/// before any kana; waiting a few characters keeps those from locking in.
-const PREVIEW_DETECTION_MIN_CHARS: usize = 6;
-
-/// Converts live-preview text into the configured Chinese script as it streams.
-///
-/// The preview is cosmetic: the final paste re-resolves the language and
-/// converts on its own, so this only has to look right while speaking.
-struct PreviewScript {
-    script: ChineseScript,
-    variety: Option<ChineseVariety>,
-    /// The language wasn't known when the stream started (auto-detect), so it
-    /// is detected from the streamed text until it turns out to be Chinese.
-    detect: bool,
-}
-
-impl PreviewScript {
-    fn new(script: ChineseScript, output_language: &OutputLanguageEvidence) -> Self {
-        let enabled = script != ChineseScript::AsTranscribed;
-        Self {
-            script,
-            variety: output_language
-                .language()
-                .and_then(ChineseVariety::from_language)
-                .filter(|_| enabled),
-            detect: enabled && *output_language == OutputLanguageEvidence::Unknown,
-        }
-    }
-
-    /// Converts the model's raw committed/tentative text. Always fed the raw
-    /// text, never a previous conversion, so it stays consistent with the
-    /// final conversion. Once Chinese is detected it sticks for the rest of
-    /// the stream so the preview doesn't flip back and forth.
-    fn convert(
-        &mut self,
-        committed: &str,
-        tentative: &str,
-        supported_languages: &[String],
-    ) -> (String, String) {
-        if self.variety.is_none() && self.detect {
-            let text = format!("{committed}{tentative}");
-            if text.chars().count() >= PREVIEW_DETECTION_MIN_CHARS {
-                self.variety = detect_output_language(&text, supported_languages)
-                    .as_deref()
-                    .and_then(ChineseVariety::from_language);
-            }
-        }
-
-        match self.variety {
-            Some(variety) => (
-                convert_chinese_script(committed, variety, self.script),
-                convert_chinese_script(tentative, variety, self.script),
-            ),
-            None => (committed.to_string(), tentative.to_string()),
-        }
-    }
 }
 
 /// Optional text cleanup must never discard a successful model result. The
@@ -2302,47 +2220,6 @@ mod tests {
         });
 
         assert_eq!(result, raw);
-    }
-
-    #[test]
-    fn non_chinese_output_is_never_converted() {
-        let settings = AppSettings {
-            chinese_script: ChineseScript::Traditional,
-            ..Default::default()
-        };
-        for evidence in [
-            OutputLanguageEvidence::ModelDetected("ja".to_string()),
-            OutputLanguageEvidence::UserSelected("en".to_string()),
-            OutputLanguageEvidence::TranslatedToEnglish,
-        ] {
-            let result = post_process_transcription_text(
-                "学校に行きます".to_string(),
-                &settings,
-                false,
-                &evidence,
-                &languages(&["zh", "ja", "en"]),
-            );
-
-            assert_eq!(result, "学校に行きます", "{evidence:?}");
-        }
-    }
-
-    #[test]
-    fn auto_detected_chinese_text_is_converted() {
-        let settings = AppSettings {
-            chinese_script: ChineseScript::Simplified,
-            filler_word_removal_enabled: false,
-            ..Default::default()
-        };
-        let result = post_process_transcription_text(
-            "我們今天下午一起去學校圖書館看書，然後再去吃晚飯。".to_string(),
-            &settings,
-            false,
-            &OutputLanguageEvidence::Unknown,
-            &languages(&["zh", "en", "ja"]),
-        );
-
-        assert_eq!(result, "我们今天下午一起去学校图书馆看书，然后再去吃晚饭。");
     }
 
     #[test]

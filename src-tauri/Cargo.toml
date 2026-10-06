@@ -75,7 +75,6 @@ sha2 = "0.10"
 transcribe-rs = { version = "0.3.8", features = ["onnx"] }
 transcribe-cpp = { version = "0.2.4", default-features = false }
 handy-keys = "0.3.4"
-ferrous-opencc = "0.2.3"
 clap = { version = "4", features = ["derive"] }
 specta = "=2.0.0-rc.22"
 specta-typescript = "0.0.9"
