@@ -136,12 +136,9 @@ function App() {
       const { error_type, detail } = event.payload;
 
       if (error_type === "microphone_permission_denied") {
-        const currentPlatform = platform();
-        const platformKey = `errors.micPermissionDenied.${currentPlatform}`;
-        const description = t(platformKey, {
-          defaultValue: t("errors.micPermissionDenied.generic"),
+        toast.error(t("errors.micPermissionDeniedTitle"), {
+          description: t("errors.micPermissionDenied"),
         });
-        toast.error(t("errors.micPermissionDeniedTitle"), { description });
       } else if (error_type === "no_input_device") {
         toast.error(t("errors.noInputDeviceTitle"), {
           description: t("errors.noInputDevice"),

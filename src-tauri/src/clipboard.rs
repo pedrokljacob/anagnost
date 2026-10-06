@@ -241,29 +241,6 @@ fn try_direct_typing_linux(text: &str, preferred_tool: TypingTool) -> Result<boo
     Ok(false)
 }
 
-/// Returns the list of available typing tools on this system.
-/// Always includes "auto" as the first entry.
-#[cfg(target_os = "linux")]
-pub fn get_available_typing_tools() -> Vec<String> {
-    let mut tools = vec!["auto".to_string()];
-    if is_wtype_available() {
-        tools.push("wtype".to_string());
-    }
-    if is_kwtype_available() {
-        tools.push("kwtype".to_string());
-    }
-    if is_dotool_available() {
-        tools.push("dotool".to_string());
-    }
-    if is_ydotool_available() {
-        tools.push("ydotool".to_string());
-    }
-    if is_xdotool_available() {
-        tools.push("xdotool".to_string());
-    }
-    tools
-}
-
 /// Check if wtype is available (Wayland text input tool)
 #[cfg(target_os = "linux")]
 fn is_wtype_available() -> bool {

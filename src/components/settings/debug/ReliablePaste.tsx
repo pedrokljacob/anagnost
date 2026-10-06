@@ -17,8 +17,8 @@ export const ReliablePasteToggle: React.FC<ReliablePasteToggleProps> = ({
   const { getSetting, updateSetting, isUpdating } = useSettings();
   const osType = useOsType();
 
-  // The receipt-sequenced paste path is implemented for macOS and Windows.
-  if (osType !== "macos" && osType !== "windows") {
+  // The receipt-sequenced paste path is implemented for macOS only.
+  if (osType !== "macos") {
     return null;
   }
 
