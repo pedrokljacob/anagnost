@@ -8,8 +8,9 @@ A macOS dictation app built on a fork of [Handy](https://github.com/cjpais/Handy
 
 ## Install or update
 
-Every push to `main` publishes a new build (about 8 minutes). To install it,
-or replace the installed app with the latest build, run in Terminal:
+Every push to `main` publishes a new build once the tests pass. It needs an
+Apple Silicon Mac with macOS 13 or later. To install it, or replace the
+installed app with the latest build, run in Terminal:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/pedrokljacob/anagnost/main/scripts/install-mac.sh | bash
@@ -17,11 +18,13 @@ curl -fsSL https://raw.githubusercontent.com/pedrokljacob/anagnost/main/scripts/
 
 ## Uninstall
 
-Turn off "Launch at login" in the app and quit it, then run:
+Run in Terminal:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/pedrokljacob/anagnost/main/scripts/uninstall.sh) --app
+curl -fsSL https://raw.githubusercontent.com/pedrokljacob/anagnost/main/scripts/uninstall.sh | bash -s -- --app
 ```
 
-It lists everything it will delete and asks before deleting. Details are in
+If "Launch on Startup" is on or Anagnost is running, it deletes nothing and
+tells you what to turn off first; run it again afterwards. Then it lists
+everything it will delete and asks before deleting. Details are in
 `BUILD.md`.

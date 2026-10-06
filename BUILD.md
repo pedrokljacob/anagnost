@@ -6,11 +6,13 @@ Linux is only a test bench for the Rust crate and the frontend (see
 
 ## Install the latest CI build
 
-Every push to `main` runs `.github/workflows/mac-build.yml` on a GitHub
-Apple Silicon runner and publishes the app as the rolling `latest`
-pre-release. No local build is needed.
+`.github/workflows/ci.yml` runs the [Linux test bench](#linux-test-bench)
+checks on every push and on pull requests. On `main`, once they pass, it
+builds the app on a GitHub Apple Silicon runner and publishes it as the
+rolling `latest` pre-release. No local build is needed.
 
-Install or update it on the Mac with the tools macOS ships with:
+Install or update it on the Mac (Apple Silicon, macOS 13 or later, from an
+administrator account) with the tools macOS ships with:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/pedrokljacob/anagnost/main/scripts/install-mac.sh | bash
@@ -18,9 +20,11 @@ curl -fsSL https://raw.githubusercontent.com/pedrokljacob/anagnost/main/scripts/
 
 From a checkout, `scripts/install-mac.sh` does the same. It skips the
 download when the installed build is already current; pass `--force` to
-reinstall (`| bash -s -- --force` for the one-liner). It leaves nothing on
-the Mac but the app; `curl` downloads are not quarantined, so Gatekeeper
-does not block the unnotarized app.
+reinstall (`| bash -s -- --force` for the one-liner). It copies the new app
+next to the old one before swapping them, so a failed install leaves the
+installed app as it was, and quits and relaunches a running copy. It leaves
+nothing on the Mac but the app; `curl` downloads are not quarantined, so
+Gatekeeper does not block the unnotarized app.
 
 ### Signing certificate
 
@@ -43,24 +47,27 @@ certificate means granting the permissions once more.
 
 ## Uninstall
 
-Turn off "Launch at login" in the app and quit it, then run:
-
 ```bash
-scripts/uninstall.sh --app
+curl -fsSL https://raw.githubusercontent.com/pedrokljacob/anagnost/main/scripts/uninstall.sh | bash -s -- --app
 ```
 
-Without a checkout (not piped into `bash`, so the confirmation prompt can
-read the terminal):
+From a checkout: `scripts/uninstall.sh --app`. Without `--app` the app
+itself stays in `/Applications`.
 
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/pedrokljacob/anagnost/main/scripts/uninstall.sh) --app
-```
+The script first checks what it cannot undo by itself. If "Launch on
+Startup" is on (read from the app's settings) or the app is running, it
+deletes nothing and says what to do: turn the setting off in Anagnost under
+Settings > Advanced, which removes the app's login item, then quit the app.
+Run it again afterwards.
 
-It lists what it found and asks before deleting: the app data folder
-(`~/Library/Application Support/<identifier>`), the caches, preferences,
+It then lists what it found and asks before deleting (`--yes` skips the
+question): the app data folder (`~/Library/Application Support/<identifier>`,
+which holds settings, history, models and logs), the caches, preferences,
 saved state and crash reports macOS keeps for the app, and, with `--app`,
-the app itself. It also resets the app's Microphone, Accessibility and
-Input Monitoring permissions.
+the app itself. It also resets all of the app's privacy permissions
+(Microphone, Accessibility, Input Monitoring) before deleting the app, and
+says so if that fails, in which case remove the app under System Settings >
+Privacy & Security by hand.
 
 ## macOS
 
