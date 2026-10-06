@@ -5,6 +5,7 @@ Instructions for AI coding agents working in this repository. Keep this file sho
 ## Decisions
 
 - Read `DECISIONS.md` before starting. Treat anything not in it as open, and do not infer preferences from past work.
+- For UI work, follow `REDESIGN.md` while it exists.
 
 ## Scope of writes
 
