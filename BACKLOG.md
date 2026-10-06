@@ -17,4 +17,3 @@ or decided (decisions go to `DECISIONS.md`).
 - Trim the model catalog to the families actually used.
 - VAD: keep Silero, earshot, or both.
 - Auto-updater: re-add once Anagnost publishes signed releases.
-- Own CI (checks and tests).

@@ -8,11 +8,11 @@ Add a line when a decision starts affecting work. Delete it if reversed.
 - Upstream is merged periodically and reviewed: check what each merge brings in, how it affects these decisions, and what needs adapting. Files deleted here stay deleted (resolve modify/delete conflicts by removing them again).
 - Redesigned UI files are ours: on upstream merges keep our version, and port a Handy UI change by hand in the new design when it is worth having.
 - Agent instructions live in `AGENTS.md` only. Handy's `CLAUDE.md` and `CRUSH.md` were dropped at import; do not reintroduce them.
-- Anagnost ships for macOS only (target: Apple Silicon). Windows/Linux packaging, installers and CI are not kept.
-- Linux is a test bench, not a target: the Rust crate must keep compiling and passing tests on Linux, and the headless `--transcribe-file` mode stays for testing. The Mac app is built on a macOS machine, never cross-compiled.
+- Anagnost ships for macOS only: Apple Silicon, macOS 13 or later. Windows/Linux packaging and installers are not kept.
+- Linux is a test bench, not a target: the Rust crate must keep compiling and passing tests on Linux, and the headless `--transcribe-file` mode stays for testing. The Mac app is built on a macOS machine, never cross-compiled. CI runs the Linux checks and tests before it publishes a Mac build.
 - The UI is English only. Keep `react-i18next` and the lint rule so all UI text stays in `src/i18n/locales/en/translation.json`.
 - Not shipped: auto-updater, What's New, remote-control CLI flags and signals, keyboard-implementation choice in the UI, footer model selector, Chinese script conversion, translate-to-English, sound picker (Marimba only).
-- Kept on purpose: LLM post-processing, transcription history (text only), duplicate-launch guard (single instance), both VAD backends, the full model catalog.
+- Kept on purpose: LLM post-processing, transcription history (text only, last 5 entries plus starred ones, no setting), duplicate-launch guard (single instance), both VAD backends, the full model catalog.
 - UI redesign in progress, tracked in `REDESIGN.md`.
 - UI look: native macOS first. Depart from it only where Pedro asks explicitly.
 - Theme follows the system; no in-app light/dark choice.
