@@ -41,6 +41,20 @@ updates. One-time setup:
 Keep the `.p12` and its password somewhere safe and delete the file. A new
 certificate means granting the permissions once more.
 
+## Uninstall
+
+Turn off "Launch at login" in the app and quit it, then run:
+
+```bash
+scripts/uninstall.sh --app
+```
+
+It lists what it found and asks before deleting: the app data folder
+(`~/Library/Application Support/<identifier>`), the caches, preferences,
+saved state and crash reports macOS keeps for the app, and, with `--app`,
+the app itself. It also resets the app's Microphone, Accessibility and
+Input Monitoring permissions.
+
 ## macOS
 
 ### Prerequisites

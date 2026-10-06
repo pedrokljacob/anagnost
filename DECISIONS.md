@@ -12,10 +12,11 @@ Add a line when a decision starts affecting work. Delete it if reversed.
 - Linux is a test bench, not a target: the Rust crate must keep compiling and passing tests on Linux, and the headless `--transcribe-file` mode stays for testing. The Mac app is built on a macOS machine, never cross-compiled.
 - The UI is English only. Keep `react-i18next` and the lint rule so all UI text stays in `src/i18n/locales/en/translation.json`.
 - Not shipped: auto-updater, What's New, remote-control CLI flags and signals, keyboard-implementation choice in the UI, footer model selector, Chinese script conversion, translate-to-English, sound picker (Marimba only).
-- Kept on purpose: LLM post-processing, transcription history (text only, audio to be dropped), duplicate-launch guard (single instance), both VAD backends, the full model catalog.
+- Kept on purpose: LLM post-processing, transcription history (text only), duplicate-launch guard (single instance), both VAD backends, the full model catalog.
 - UI redesign in progress, tracked in `REDESIGN.md`.
 - UI look: native macOS first. Depart from it only where Pedro asks explicitly.
 - Theme follows the system; no in-app light/dark choice.
 - Accessibility bar: every UI element stays clearly visible in light and dark. No formal WCAG target.
 - UI building blocks stay hand-built (`src/components/ui/`) and are restyled; icons stay lucide. Use native `<select>` wherever search isn't needed.
 - App name is Anagnost, bundle identifier `com.pedrojacob.anagnost`, author Pedro. Code names use `anagnost` (crate, `anagnost_lib`, `ANAGNOST_*` env vars). Kept as Handy on purpose: the `handy-keys` crate and its wrappers, model hosting (`blob.handy.computer`, `handy-computer` on Hugging Face), upstream issue references and code comments. No migration from Handy app data.
+- On-disk footprint: everything the app writes lives in one folder, `~/Library/Application Support/<identifier>/` (settings, history, models including the Hugging Face cache, logs). Webviews keep no data on disk. `scripts/uninstall.sh` removes that folder plus what macOS keeps for the app (caches, preferences, privacy permissions).

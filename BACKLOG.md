@@ -6,7 +6,6 @@ or decided (decisions go to `DECISIONS.md`).
 ## Separate threads
 
 - Platform code: strip Linux/Windows code (cfg blocks in `clipboard.rs`, `overlay.rs`, `build.rs`, audio, tray; `paste_tx/windows.rs`; `portable.rs`; Windows mic permission onboarding; Linux typing tools, extra paste methods, CUDA/DirectML/ROCm, Colored tray theme). Keep the crate compiling on Linux. Also fix `build.rs` comments that still cite the deleted `tauri.windows.conf.json`, and check shortcut recording on Linux (the UI always records through handy-keys; the Linux default backend is Tauri).
-- History: keep text history, drop saved audio (player, re-transcribe, retention settings).
 - Legacy ONNX engines: remove `transcribe-rs` engines and the hardcoded legacy model table. Check the 5 old Whisper entries in that table.
 - Onboarding loop: on a first run with permissions already granted (e.g. after a reinstall), the permission check effect in `AccessibilityOnboarding.tsx` re-runs on every parent render and never settles. Seen in the UI preview; confirm on the Mac.
 
@@ -20,5 +19,7 @@ or decided (decisions go to `DECISIONS.md`).
 - LLM post-processing: keep or remove after using the app.
 - Hidden debug and experimental settings: keep or remove.
 - Custom words: keep or remove.
+- History retention: keep both the entry limit and the auto-delete period, or merge them.
+- Frontend file access: `tauri-plugin-fs`, its `$APPDATA` read scope and the `**` asset-protocol scope were only used to play recordings; remove them.
 - Auto-updater: re-add once Anagnost publishes signed releases.
 - Own CI (checks and tests).
