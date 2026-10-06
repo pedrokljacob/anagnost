@@ -86,7 +86,9 @@ jobs:
           codesign -dr - "$APP"
 
       # latest.txt tells the install script the commit and the app bundle
-      # name without needing the GitHub API.
+      # name without needing the GitHub API. The release is updated in
+      # place, never deleted, so the download URLs keep working throughout;
+      # latest.txt goes last so it never names a build not yet uploaded.
       - name: Publish rolling release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -94,9 +96,16 @@ jobs:
           cp src-tauri/target/release/bundle/dmg/*.dmg "$RUNNER_TEMP/$ASSET"
           APP=$(echo src-tauri/target/release/bundle/macos/*.app)
           printf '%s\n%s\n' "$GITHUB_SHA" "$(basename "$APP")" > "$RUNNER_TEMP/latest.txt"
-          gh release delete latest --cleanup-tag --yes || true
-          gh release create latest "$RUNNER_TEMP/$ASSET" "$RUNNER_TEMP/latest.txt" \
-            --prerelease \
-            --target "$GITHUB_SHA" \
-            --title "Latest build (${GITHUB_SHA::7})" \
-            --notes "Built from $GITHUB_SHA. Install or update with scripts/install-mac.sh (see BUILD.md)."
+          TITLE="Latest build (${GITHUB_SHA::7})"
+          NOTES="Built from $GITHUB_SHA. Install or update with scripts/install-mac.sh (see BUILD.md)."
+          if ! gh release view latest >/dev/null 2>&1; then
+            gh release create latest --prerelease --target "$GITHUB_SHA" \
+              --title "$TITLE" --notes "$NOTES"
+          fi
+          gh release upload latest "$RUNNER_TEMP/$ASSET" --clobber
+          gh release upload latest "$RUNNER_TEMP/latest.txt" --clobber
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/latest" \
+            -f sha="$GITHUB_SHA" -F force=true >/dev/null \
+            || gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref=refs/tags/latest -f sha="$GITHUB_SHA" >/dev/null
+          gh release edit latest --prerelease --title "$TITLE" --notes "$NOTES"
