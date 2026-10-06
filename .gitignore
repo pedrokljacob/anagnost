@@ -1,0 +1,17 @@
+# Scratch space for explicitly requested temporary work (see AGENTS.md)
+.scratch/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
