@@ -114,6 +114,21 @@ if ! ditto "$mnt/$app_name" "$staging"; then
   echo "Could not copy $app_name to /Applications. The installed app is unchanged." >&2
   exit 1
 fi
+# CI signs every build with the project's certificate, so a copy that fails
+# to verify, or carries an ad-hoc signature, is corrupt or not a CI build.
+# Fail closed. The certificate is self-signed, so this checks integrity, not
+# who built it; see BUILD.md, "Trust model".
+if ! codesign --verify --deep --strict "$staging" 2>/dev/null; then
+  echo "The downloaded $app_name failed signature verification. The installed app is unchanged." >&2
+  exit 1
+fi
+if codesign -dv "$staging" 2>&1 | grep -q '^Signature=adhoc$'; then
+  echo "The downloaded $app_name is not signed with the project certificate. The installed app is unchanged." >&2
+  exit 1
+fi
+# The copy is not quarantined (curl, not a browser, downloaded it), so
+# Gatekeeper does not block the unnotarized app. Remove the attribute anyway
+# in case the image carried it.
 xattr -dr com.apple.quarantine "$staging" 2>/dev/null || true
 
 # The executable's name can differ in case from the app's.
