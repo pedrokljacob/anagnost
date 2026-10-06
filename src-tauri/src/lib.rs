@@ -755,6 +755,10 @@ pub fn run(cli_args: CliArgs) {
         .setup(move |app| {
             specta_builder.mount_events(app);
 
+            if let Err(e) = paths::restrict_app_data_dir(app.handle()) {
+                log::warn!("Could not restrict the app data folder: {e}");
+            }
+
             // Headless one-shot path (`--transcribe-file` / `--list-devices` /
             // `--list-models`): initialize only what transcription needs — the
             // store/paths plugins, the model + transcription managers, and the

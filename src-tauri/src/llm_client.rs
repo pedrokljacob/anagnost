@@ -290,6 +290,32 @@ fn report_reqwest_error(context: &str, error: &reqwest::Error) -> String {
     details
 }
 
+/// Summarize a failed provider response for logs and errors without echoing
+/// the raw body: it can repeat the prompt and the transcript, and the error
+/// ends up in the log file. Keeps the status and, for OpenAI-style bodies,
+/// the short `error.message`.
+fn error_response_summary(status: reqwest::StatusCode, body: &str) -> String {
+    const MAX_MESSAGE_CHARS: usize = 200;
+    let message = serde_json::from_str::<Value>(body)
+        .ok()
+        .and_then(|v| {
+            v.pointer("/error/message")
+                .or_else(|| v.pointer("/message"))
+                .and_then(|m| m.as_str().map(str::to_owned))
+        })
+        .map(|m| {
+            let mut summary: String = m.chars().take(MAX_MESSAGE_CHARS).collect();
+            if summary.len() < m.len() {
+                summary.push_str("...");
+            }
+            summary
+        });
+    match message {
+        Some(m) => format!("status {status}: {m}"),
+        None => format!("status {status} ({} bytes, not logged)", body.len()),
+    }
+}
+
 /// Send a chat completion request to an OpenAI-compatible API
 /// Returns Ok(Some(content)) on success, Ok(None) if response has no content,
 /// or Err on actual errors (HTTP, parsing, etc.)
@@ -407,8 +433,8 @@ pub async fn send_chat_completion_with_schema(
             report_reqwest_error("Failed to read reasoning rejection response", &e)
         });
         info!(
-            "Endpoint rejected request with reasoning disabled (status {}): {}. Retrying without reasoning fields",
-            status, error_text
+            "Endpoint rejected request with reasoning disabled ({}). Retrying without reasoning fields",
+            error_response_summary(status, &error_text)
         );
 
         request_body.reasoning = ReasoningParams::default();
@@ -441,8 +467,8 @@ pub async fn send_chat_completion_with_schema(
             .await
             .unwrap_or_else(|e| report_reqwest_error("Failed to read API error response", &e));
         return Err(format!(
-            "API request failed with status {}: {}",
-            status, error_text
+            "API request failed with {}",
+            error_response_summary(status, &error_text)
         ));
     }
 
@@ -726,5 +752,22 @@ mod tests {
         assert!(is_known_rejected(&key));
         // A different model on the same endpoint is tracked separately
         assert!(!is_known_rejected(&endpoint_key(&deepseek, "other-model")));
+    }
+
+    #[test]
+    fn error_response_summary_keeps_message_but_not_body() {
+        let status = reqwest::StatusCode::BAD_REQUEST;
+        let body = r#"{"error":{"message":"Invalid model","echo":"secret transcript"}}"#;
+        let summary = error_response_summary(status, body);
+        assert_eq!(summary, "status 400 Bad Request: Invalid model");
+
+        let long = format!(r#"{{"message":"{}"}}"#, "x".repeat(300));
+        let summary = error_response_summary(status, &long);
+        assert!(summary.ends_with("..."));
+        assert!(summary.len() < 240);
+
+        let summary = error_response_summary(status, "<html>secret transcript</html>");
+        assert!(!summary.contains("secret"));
+        assert!(summary.contains("not logged"));
     }
 }
