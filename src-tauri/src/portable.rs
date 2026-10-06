@@ -65,12 +65,35 @@ pub fn app_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, tauri::Error> {
     }
 }
 
-/// Portable-aware replacement for `app.path().app_log_dir()`.
+/// Log folder, inside the app data folder so all app files live in one place.
 pub fn app_log_dir(app: &tauri::AppHandle) -> Result<PathBuf, tauri::Error> {
-    if let Some(dir) = data_dir() {
-        Ok(dir.join("logs"))
-    } else {
-        app.path().app_log_dir()
+    Ok(app_data_dir(app)?.join("logs"))
+}
+
+/// Same folder as [`app_log_dir`], resolved before Tauri starts because the log
+/// plugin needs it at build time. Mirrors how Tauri resolves `app_data_dir`.
+pub fn log_dir(identifier: &str) -> Option<PathBuf> {
+    match data_dir() {
+        Some(dir) => Some(dir.join("logs")),
+        None => dirs::data_dir().map(|dir| dir.join(identifier).join("logs")),
+    }
+}
+
+/// Remove the OS log folder used before logs moved into the app data folder.
+/// On Linux both resolve to the same folder, so nothing is removed there.
+pub fn remove_legacy_log_dir(app: &tauri::AppHandle) {
+    if is_portable() {
+        return;
+    }
+    let (Ok(legacy), Ok(current)) = (app.path().app_log_dir(), app_log_dir(app)) else {
+        return;
+    };
+    if legacy == current || !legacy.exists() {
+        return;
+    }
+    match std::fs::remove_dir_all(&legacy) {
+        Ok(()) => log::info!("Removed legacy log folder {:?}", legacy),
+        Err(e) => log::warn!("Failed to remove legacy log folder {:?}: {}", legacy, e),
     }
 }
 

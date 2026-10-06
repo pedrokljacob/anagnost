@@ -122,7 +122,7 @@ mockIPC(
       case "get_app_dir_path":
         return "/Users/you/Library/Application Support/com.pedrojacob.anagnost";
       case "get_log_dir_path":
-        return "/Users/you/Library/Logs/com.pedrojacob.anagnost";
+        return "/Users/you/Library/Application Support/com.pedrojacob.anagnost/logs";
       case "is_laptop":
         return true;
       case "get_secure_input_status":

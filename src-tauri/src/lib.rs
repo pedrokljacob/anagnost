@@ -739,6 +739,9 @@ pub fn run(cli_args: CliArgs) {
     let headless_mode =
         cli_args.transcribe_file.is_some() || cli_args.list_devices || cli_args.list_models;
 
+    let context = tauri::generate_context!();
+    let log_dir = portable::log_dir(&context.config().identifier);
+
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default()
         .device_event_filter(tauri::DeviceEventFilter::Always)
@@ -764,9 +767,9 @@ pub fn run(cli_args: CliArgs) {
                         move |metadata| console_filter.enabled(metadata)
                     }),
                     // File logs respect the user's settings (stored in FILE_LOG_LEVEL atomic)
-                    Target::new(if let Some(data_dir) = portable::data_dir() {
+                    Target::new(if let Some(path) = log_dir {
                         TargetKind::Folder {
-                            path: data_dir.join("logs"),
+                            path,
                             file_name: Some("anagnost".into()),
                         }
                     } else {
@@ -837,6 +840,8 @@ pub fn run(cli_args: CliArgs) {
             );
 
             specta_builder.mount_events(app);
+
+            portable::remove_legacy_log_dir(app.handle());
 
             // Headless one-shot path (`--transcribe-file` / `--list-devices` /
             // `--list-models`): initialize only what transcription needs — the
@@ -1028,7 +1033,7 @@ pub fn run(cli_args: CliArgs) {
             _ => {}
         })
         .invoke_handler(invoke_handler)
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building tauri application");
 
     // Must sit between build() and run(): see the doc comment.
