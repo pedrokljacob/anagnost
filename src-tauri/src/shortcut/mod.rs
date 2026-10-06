@@ -324,23 +324,6 @@ pub fn resume_all_shortcuts(app: &AppHandle) {
     }
 }
 
-/// Temporarily unregister all bindings while the user is recording a
-/// shortcut in the UI. This avoids firing actions while keys are recorded.
-#[tauri::command]
-#[specta::specta]
-pub fn suspend_all_bindings(app: AppHandle) -> Result<(), String> {
-    suspend_all_shortcuts(&app);
-    Ok(())
-}
-
-/// Re-register all bindings after the user has finished recording.
-#[tauri::command]
-#[specta::specta]
-pub fn resume_all_bindings(app: AppHandle) -> Result<(), String> {
-    resume_all_shortcuts(&app);
-    Ok(())
-}
-
 // ============================================================================
 // Validation Helpers
 // ============================================================================

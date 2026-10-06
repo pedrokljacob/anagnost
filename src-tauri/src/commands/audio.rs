@@ -258,13 +258,6 @@ pub fn set_clamshell_microphone(app: AppHandle, device_name: String) -> Result<(
 
 #[tauri::command]
 #[specta::specta]
-pub fn is_recording(app: AppHandle) -> bool {
-    let audio_manager = app.state::<Arc<AudioRecordingManager>>();
-    audio_manager.is_recording()
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn get_microphone_channels(device_name: String) -> Result<u16, String> {
     // cpal device enumeration and config queries can stall, so keep them off
     // the webview/main run loop.

@@ -13,15 +13,6 @@ pub async fn get_available_models(
     Ok(model_manager.get_available_models())
 }
 
-#[tauri::command]
-#[specta::specta]
-pub async fn get_model_info(
-    model_manager: State<'_, Arc<ModelManager>>,
-    model_id: String,
-) -> Result<Option<ModelInfo>, String> {
-    Ok(model_manager.get_model_info(&model_id))
-}
-
 /// Re-scan local sources (custom models dir + HF cache) for models added
 /// since launch
 #[tauri::command]
@@ -174,14 +165,6 @@ pub async fn set_active_model(
 pub async fn get_current_model(app_handle: AppHandle) -> Result<String, String> {
     let settings = get_settings(&app_handle);
     Ok(settings.selected_model)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn get_transcription_model_status(
-    transcription_manager: State<'_, Arc<TranscriptionManager>>,
-) -> Result<Option<String>, String> {
-    Ok(transcription_manager.get_current_model())
 }
 
 #[tauri::command]

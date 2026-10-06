@@ -296,29 +296,6 @@ async updateCustomWords(words: string[]) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
-/**
- * Temporarily unregister all bindings while the user is recording a
- * shortcut in the UI. This avoids firing actions while keys are recorded.
- */
-async suspendAllBindings() : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("suspend_all_bindings") };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
- * Re-register all bindings after the user has finished recording.
- */
-async resumeAllBindings() : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("resume_all_bindings") };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
 async changeMuteWhileRecordingSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_mute_while_recording_setting", { enabled }) };
@@ -462,9 +439,6 @@ async showMainWindowCommand() : Promise<Result<null, string>> {
 async cancelOperation() : Promise<void> {
     await TAURI_INVOKE("cancel_operation");
 },
-async isPortable() : Promise<boolean> {
-    return await TAURI_INVOKE("is_portable");
-},
 async getAppDirPath() : Promise<Result<string, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_app_dir_path") };
@@ -561,14 +535,6 @@ async getAvailableModels() : Promise<Result<ModelInfo[], string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async getModelInfo(modelId: string) : Promise<Result<ModelInfo | null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("get_model_info", { modelId }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
 async downloadModel(modelId: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("download_model", { modelId }) };
@@ -604,14 +570,6 @@ async setActiveModel(modelId: string) : Promise<Result<null, string>> {
 async getCurrentModel() : Promise<Result<string, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_current_model") };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async getTranscriptionModelStatus() : Promise<Result<string | null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("get_transcription_model_status") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -687,9 +645,6 @@ async setClamshellMicrophone(deviceName: string) : Promise<Result<null, string>>
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
-},
-async isRecording() : Promise<boolean> {
-    return await TAURI_INVOKE("is_recording");
 },
 async getMicrophoneChannels(deviceName: string) : Promise<Result<number, string>> {
     try {
