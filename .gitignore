@@ -6,7 +6,8 @@
 Thumbs.db
 *.swp
 .idea/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 
 # Local environment and secrets
 .env
@@ -18,3 +19,40 @@ Thumbs.db
 
 # Git worktrees for parallel work (see AGENTS.md)
 .worktrees/
+
+# --- Inherited from upstream Handy ---
+
+# Node / Vite
+node_modules
+dist
+dist-ssr
+*.local
+*.local.*
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+logs
+
+# Rust / Tauri
+/target/
+recording_*
+
+# Agent tooling
+.claude/
+.crush/
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/
+
+# Nix
+.direnv
+.envrc
+result
+
+# Python bytecode (scripts/)
+__pycache__/
