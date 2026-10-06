@@ -169,8 +169,13 @@ if (isOverlay) {
 
   setTimeout(async () => {
     const streaming = state.startsWith("streaming") || state === "polishing";
+    // overlay.rs never sends "arming": it shows "recording" and holds back
+    // recording-ready until capture has started.
+    if (state === "arming") {
+      await emit("show-overlay", "recording");
+      return;
+    }
     await emit("show-overlay", streaming ? "streaming" : state);
-    if (state === "arming") return;
     if (state === "processing" || state === "transcribing") return;
     await emit("recording-ready");
     setInterval(() => {
