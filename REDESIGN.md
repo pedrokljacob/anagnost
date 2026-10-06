@@ -68,15 +68,14 @@ Pedro builds on the Mac at these points and reports back:
 
 ## Phase 0: decide what stays
 
-Settle these before redesigning their screens (from `BACKLOG.md`):
+Settle these before redesigning their screens:
 
 - [ ] Hidden debug and experimental settings: keep or remove.
-- [ ] LLM post-processing: keep or remove. `DECISIONS.md` lists it as kept,
-      `BACKLOG.md` as revisit after use; confirm which holds.
 - [ ] Custom words: keep or remove.
 
 Already decided: history keeps text and drops audio (player, re-transcribe,
-retention settings), so History is designed without them.
+retention settings), so History is designed without them. LLM post-processing
+stays (`DECISIONS.md`), so it gets its screen.
 
 ## Phase 1: foundations and building blocks (one at a time)
 
@@ -104,7 +103,7 @@ retention settings), so History is designed without them.
 - [ ] **Advanced**: app, output, transcription, history and experimental
       groups; structure depends on Phase 0.
 - [ ] **Post-processing**: provider, API key, base URL, model, prompts,
-      shortcut (if kept in Phase 0).
+      shortcut.
 - [ ] **Debug**: diagnostics, log viewer, onboarding preview (if kept).
 - [ ] **About**: version, folders, acknowledgements; theme selector removed
       (theme follows the system).
