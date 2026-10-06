@@ -2286,11 +2286,8 @@ mod tests {
             ..Default::default()
         };
 
-        let evidence = resolve_output_language_evidence(
-            &settings,
-            Some("en"),
-            &languages(&["en", "de"]),
-        );
+        let evidence =
+            resolve_output_language_evidence(&settings, Some("en"), &languages(&["en", "de"]));
 
         assert_eq!(
             evidence,
@@ -2341,7 +2338,10 @@ mod tests {
     fn transcribe_cpp_language_passes_only_advertised_languages() {
         let supported = languages(&["en", "es"]);
 
-        assert_eq!(transcribe_cpp_language("es", &supported).as_deref(), Some("es"));
+        assert_eq!(
+            transcribe_cpp_language("es", &supported).as_deref(),
+            Some("es")
+        );
         assert_eq!(transcribe_cpp_language("pt", &supported), None);
         assert_eq!(transcribe_cpp_language("auto", &supported), None);
     }

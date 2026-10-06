@@ -8,4 +8,3 @@ pub fn set_model_unload_timeout(app: AppHandle, timeout: ModelUnloadTimeout) {
     settings.model_unload_timeout = timeout;
     write_settings(&app, settings);
 }
-
