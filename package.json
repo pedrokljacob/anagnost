@@ -21,7 +21,6 @@
     "@tailwindcss/vite": "^4.1.16",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-dialog": "~2.6",
-    "@tauri-apps/plugin-fs": "~2.4.4",
     "@tauri-apps/plugin-os": "~2.3.2",
     "i18next": "^25.7.2",
     "immer": "^11.1.3",

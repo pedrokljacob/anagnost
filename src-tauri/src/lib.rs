@@ -819,7 +819,6 @@ pub fn run(cli_args: CliArgs) {
 
     #[allow(unused_mut)]
     let mut app = builder
-        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_macos_permissions::init())

@@ -17,6 +17,5 @@ or decided (decisions go to `DECISIONS.md`).
 - Trim the model catalog to the families actually used.
 - VAD: keep Silero, earshot, or both.
 - History retention: keep both the entry limit and the auto-delete period, or merge them.
-- Frontend file access: `tauri-plugin-fs`, its `$APPDATA` read scope and the `**` asset-protocol scope were only used to play recordings; remove them.
 - Auto-updater: re-add once Anagnost publishes signed releases.
 - Own CI (checks and tests).

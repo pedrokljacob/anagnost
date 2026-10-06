@@ -199,8 +199,6 @@ mockIPC(
       case "plugin:dialog|ask":
       case "plugin:dialog|confirm":
         return window.confirm(String(args.message ?? ""));
-      case "plugin:fs|read_file":
-        return new Uint8Array();
     }
     if (applySettingChange(cmd, args)) return null;
     if (!cmd.startsWith("get_") && !cmd.startsWith("plugin:")) return null;
