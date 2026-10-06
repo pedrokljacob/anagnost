@@ -6,7 +6,6 @@ import {
   Download,
   Globe,
   HardDrive,
-  Languages,
   Loader2,
   Trash2,
 } from "lucide-react";
@@ -241,15 +240,6 @@ const ModelCard: React.FC<ModelCardProps> = ({
           >
             <Globe className="w-3.5 h-3.5" />
             <span>{getLanguageDisplayText(model.supported_languages, t)}</span>
-          </div>
-        )}
-        {model.supports_translation && (
-          <div
-            className="flex items-center gap-1 text-xs text-text/50"
-            title={t("modelSelector.capabilities.translation")}
-          >
-            <Languages className="w-3.5 h-3.5" />
-            <span>{t("modelSelector.capabilities.translate")}</span>
           </div>
         )}
         {model.supports_streaming && (

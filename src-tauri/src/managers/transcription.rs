@@ -20,7 +20,7 @@ use std::time::{Duration, Instant, SystemTime};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_specta::Event;
 use transcribe_cpp::{
-    Backend, Feature, Model, ModelOptions, RunExtension, RunOptions, Session, StreamOptions, Task,
+    Backend, Feature, Model, ModelOptions, RunExtension, RunOptions, Session, StreamOptions,
     WhisperRunOptions,
 };
 use transcribe_rs::{
@@ -888,7 +888,7 @@ impl TranscriptionManager {
         // Only transcribe-cpp models expose streaming; ONNX engines fall back to
         // batch. The loaded session (not the ModelManager copy) is the source of
         // truth for run-path capabilities.
-        let (supports_streaming, supports_translate, languages) = match &engine {
+        let (supports_streaming, languages) = match &engine {
             LoadedEngine::TranscribeCpp(session) => {
                 let model = session.model();
                 let caps = model.capabilities();
@@ -902,11 +902,7 @@ impl TranscriptionManager {
                     caps.supports_translate,
                     caps.languages,
                 );
-                (
-                    caps.supports_streaming,
-                    caps.supports_translate,
-                    caps.languages,
-                )
+                (caps.supports_streaming, caps.languages)
             }
             _ => {
                 info!(
@@ -914,7 +910,7 @@ impl TranscriptionManager {
                      streaming is unavailable, using batch transcription",
                     model_id
                 );
-                (false, false, Vec::new())
+                (false, Vec::new())
             }
         };
 
@@ -925,27 +921,16 @@ impl TranscriptionManager {
             return;
         }
 
-        // Build run options mirroring the offline transcribe-cpp path: task +
+        // Build run options mirroring the offline transcribe-cpp path: the
         // language gated against what the model actually advertises.
         let settings = get_settings(&self.app_handle);
         let effective_language =
             effective_language_for_model(&settings, self.model_manager.as_ref(), &model_id);
-        let run_plan = transcribe_cpp_run_plan(
-            settings.translate_to_english,
-            &effective_language,
-            &languages,
-            supports_translate,
-        );
-        let output_language = resolve_output_language_evidence(
-            &settings,
-            run_plan.language.as_deref(),
-            &languages,
-            run_plan.target_language.as_deref() == Some("en"),
-        );
+        let language = transcribe_cpp_language(&effective_language, &languages);
+        let output_language =
+            resolve_output_language_evidence(&settings, language.as_deref(), &languages);
         let run_options = RunOptions {
-            task: run_plan.task,
-            language: run_plan.language,
-            target_language: run_plan.target_language,
+            language,
             ..Default::default()
         };
 
@@ -1272,14 +1257,12 @@ impl TranscriptionManager {
             // reads); the loaded session is the source of truth, not the
             // ModelManager copy. The whisper run extension is kind-tagged, so
             // non-whisper archs (parakeet, voxtral, …) reject it with
-            // INVALID_ARG; attach it — and translate — only where supported.
-            let mut model_supports_translate = false;
+            // INVALID_ARG; attach it only where supported.
             let mut model_languages = self
                 .model_manager
                 .get_model_info(&active_model)
                 .map(|info| info.supported_languages)
                 .unwrap_or_default();
-            let mut output_was_translated = false;
             let mut applied_language_hint: Option<String> = None;
             let mut model_detected_language: Option<String> = None;
             if let LoadedEngine::TranscribeCpp(session) = &engine {
@@ -1287,14 +1270,12 @@ impl TranscriptionManager {
                 let caps = model.capabilities();
                 model_takes_initial_prompt = model.supports(Feature::InitialPrompt);
                 model_is_whisper = model.arch() == "whisper";
-                model_supports_translate = caps.supports_translate;
                 model_languages = caps.languages;
                 debug!(
-                    "transcribe-cpp model '{}' on '{}': initial_prompt={}, translate={}, languages={:?}",
+                    "transcribe-cpp model '{}' on '{}': initial_prompt={}, languages={:?}",
                     settings.selected_model,
                     model.backend(),
                     model_takes_initial_prompt,
-                    model_supports_translate,
                     model_languages
                 );
             }
@@ -1316,19 +1297,12 @@ impl TranscriptionManager {
                             }))
                         };
 
-                        let run_plan = transcribe_cpp_run_plan(
-                            settings.translate_to_english,
-                            &validated_language,
-                            &model_languages,
-                            model_supports_translate,
-                        );
-                        output_was_translated = run_plan.target_language.as_deref() == Some("en");
-                        applied_language_hint = run_plan.language.clone();
+                        let language =
+                            transcribe_cpp_language(&validated_language, &model_languages);
+                        applied_language_hint = language.clone();
 
                         let run_options = RunOptions {
-                            task: run_plan.task,
-                            language: run_plan.language,
-                            target_language: run_plan.target_language,
+                            language,
                             family,
                             ..Default::default()
                         };
@@ -1396,7 +1370,6 @@ impl TranscriptionManager {
                         .map(|r| r.text)
                         .map_err(|e| anyhow::anyhow!("GigaAM transcription failed: {}", e)),
                     LoadedEngine::Canary(canary_engine) => {
-                        output_was_translated = settings.translate_to_english;
                         let lang = if validated_language == "auto" {
                             None
                         } else {
@@ -1405,7 +1378,6 @@ impl TranscriptionManager {
                         applied_language_hint = lang.clone();
                         let options = TranscribeOptions {
                             language: lang,
-                            translate: settings.translate_to_english,
                             ..Default::default()
                         };
                         canary_engine
@@ -1479,7 +1451,6 @@ impl TranscriptionManager {
                     &settings,
                     applied_language_hint.as_deref(),
                     &model_languages,
-                    output_was_translated,
                 ),
                 model_detected_language,
             );
@@ -1502,11 +1473,6 @@ impl TranscriptionManager {
         );
 
         let et = std::time::Instant::now();
-        let translation_note = if settings.translate_to_english {
-            " (translated)"
-        } else {
-            ""
-        };
         // Real-time factor. Input PCM is 16 kHz mono, so audio length in seconds
         // is samples / 16000. `speedup` is audio_secs / elapsed_secs — e.g. 4.00x
         // means transcribed 4x faster than real time
@@ -1514,8 +1480,8 @@ impl TranscriptionManager {
         let audio_secs = audio_len as f64 / 16_000.0;
         let speedup = real_time_factor(audio_secs, elapsed_secs);
         info!(
-            "Transcription completed in {:.2}s for {:.2}s of audio ({:.2}x real-time){}",
-            elapsed_secs, audio_secs, speedup, translation_note
+            "Transcription completed in {:.2}s for {:.2}s of audio ({:.2}x real-time)",
+            elapsed_secs, audio_secs, speedup
         );
 
         let final_result = filtered_result;
@@ -1673,12 +1639,7 @@ fn resolve_output_language_evidence(
     settings: &AppSettings,
     applied_language_hint: Option<&str>,
     supported_languages: &[String],
-    translated_to_english: bool,
 ) -> OutputLanguageEvidence {
-    if translated_to_english {
-        return OutputLanguageEvidence::TranslatedToEnglish;
-    }
-
     // Stored language intent is only evidence when this specific engine run
     // actually received the hint. Some multilingual engines (notably Parakeet
     // V3) always auto-detect and ignore Handy's selection; transcribe-cpp also
@@ -1723,20 +1684,9 @@ fn with_model_detected_language(
     }
 }
 
-struct TranscribeCppRunPlan {
-    task: Task,
-    language: Option<String>,
-    target_language: Option<String>,
-}
-
-/// Build the transcribe-cpp language/task options shared by batch and live
-/// streaming paths.
-fn transcribe_cpp_run_plan(
-    translate_to_english: bool,
-    effective_language: &str,
-    model_languages: &[String],
-    model_supports_translate: bool,
-) -> TranscribeCppRunPlan {
+/// Pick the transcribe-cpp language hint shared by batch and live streaming
+/// paths.
+fn transcribe_cpp_language(effective_language: &str, model_languages: &[String]) -> Option<String> {
     let requested_language = match effective_language {
         "auto" => None,
         other => Some(other.to_string()),
@@ -1745,18 +1695,7 @@ fn transcribe_cpp_run_plan(
     // capabilities().languages); otherwise auto-detect rather than failing with
     // UNSUPPORTED_LANGUAGE. Language-agnostic models report an empty list, so
     // they always stay on auto.
-    let language = requested_language.filter(|lang| model_languages.iter().any(|l| l == lang));
-    let (task, target_language) = cpp_translation_task(
-        translate_to_english,
-        model_supports_translate,
-        language.as_deref(),
-    );
-
-    TranscribeCppRunPlan {
-        task,
-        language,
-        target_language,
-    }
+    requested_language.filter(|lang| model_languages.iter().any(|l| l == lang))
 }
 
 fn post_process_transcription_text(
@@ -1824,31 +1763,6 @@ where
             );
             fallback
         }
-    }
-}
-
-/// Decide a transcribe-cpp run's task + translation target from settings.
-///
-/// "Translate to English" only fires where the model advertises translation.
-/// Unlike transcribe-rs (which forces the target to English itself when its
-/// `translate` flag is set), transcribe-cpp requires an explicit
-/// `target_language`: a null target defaults to the *source*, so a non-English
-/// source silently becomes e.g. es→es and Canary rejects the unadvertised pair.
-/// An English source is skipped entirely — en→en is not a real translation, and
-/// it's reachable by default since auto-detect-less models coerce intent to "en".
-///
-/// Returns `(task, target_language)` ready to drop into `RunOptions`.
-fn cpp_translation_task(
-    translate_to_english: bool,
-    model_supports_translate: bool,
-    source_language: Option<&str>,
-) -> (Task, Option<String>) {
-    let translate_to_en =
-        translate_to_english && model_supports_translate && source_language != Some("en");
-    if translate_to_en {
-        (Task::Translate, Some("en".to_string()))
-    } else {
-        (Task::Transcribe, None)
     }
 }
 
@@ -2230,7 +2144,7 @@ mod tests {
             ..Default::default()
         };
         let supported = languages(&["en", "pt"]);
-        let evidence = resolve_output_language_evidence(&settings, Some("pt"), &supported, false);
+        let evidence = resolve_output_language_evidence(&settings, Some("pt"), &supported);
 
         let result = post_process_transcription_text(
             "eu vi um carro".to_string(),
@@ -2254,8 +2168,7 @@ mod tests {
             ..Default::default()
         };
 
-        let evidence =
-            resolve_output_language_evidence(&settings, Some("nb"), &languages(&["nb"]), false);
+        let evidence = resolve_output_language_evidence(&settings, Some("nb"), &languages(&["nb"]));
 
         assert_eq!(
             evidence,
@@ -2269,8 +2182,7 @@ mod tests {
             selected_language: "auto".to_string(),
             ..Default::default()
         };
-        let evidence =
-            resolve_output_language_evidence(&settings, None, &languages(&["en", "pt"]), false);
+        let evidence = resolve_output_language_evidence(&settings, None, &languages(&["en", "pt"]));
 
         // Too short for a reliable text detection, so the gated "um" must
         // survive; the universal "uhm" is removed regardless.
@@ -2359,8 +2271,7 @@ mod tests {
             ..Default::default()
         };
 
-        let evidence =
-            resolve_output_language_evidence(&settings, None, &languages(&["en"]), false);
+        let evidence = resolve_output_language_evidence(&settings, None, &languages(&["en"]));
 
         assert_eq!(
             evidence,
@@ -2379,7 +2290,6 @@ mod tests {
             &settings,
             Some("en"),
             &languages(&["en", "de"]),
-            false,
         );
 
         assert_eq!(
@@ -2398,7 +2308,7 @@ mod tests {
         };
         let supported = languages(&["en", "de", "pt"]);
 
-        let evidence = resolve_output_language_evidence(&settings, None, &supported, false);
+        let evidence = resolve_output_language_evidence(&settings, None, &supported);
         assert_eq!(evidence, OutputLanguageEvidence::Unknown);
 
         let result = post_process_transcription_text(
@@ -2418,62 +2328,22 @@ mod tests {
             ..Default::default()
         };
         let supported = languages(&[]);
-        let plan = transcribe_cpp_run_plan(false, "en", &supported, false);
+        let language = transcribe_cpp_language("en", &supported);
 
-        assert_eq!(plan.language, None);
+        assert_eq!(language, None);
         assert_eq!(
-            resolve_output_language_evidence(
-                &settings,
-                plan.language.as_deref(),
-                &supported,
-                false,
-            ),
+            resolve_output_language_evidence(&settings, language.as_deref(), &supported),
             OutputLanguageEvidence::Unknown
         );
     }
 
     #[test]
-    fn translated_output_is_treated_as_english() {
-        let settings = AppSettings {
-            selected_language: "pt".to_string(),
-            ..Default::default()
-        };
+    fn transcribe_cpp_language_passes_only_advertised_languages() {
+        let supported = languages(&["en", "es"]);
 
-        let evidence = resolve_output_language_evidence(
-            &settings,
-            Some("pt"),
-            &languages(&["en", "pt"]),
-            true,
-        );
-
-        assert_eq!(evidence, OutputLanguageEvidence::TranslatedToEnglish);
-    }
-
-    #[test]
-    fn transcribe_cpp_run_plan_skips_english_translation() {
-        let plan = transcribe_cpp_run_plan(true, "en", &languages(&["en", "es"]), true);
-
-        assert!(matches!(plan.task, Task::Transcribe));
-        assert_eq!(plan.language.as_deref(), Some("en"));
-        assert_eq!(plan.target_language, None);
-    }
-
-    #[test]
-    fn transcribe_cpp_run_plan_translates_supported_non_english() {
-        let plan = transcribe_cpp_run_plan(true, "es", &languages(&["en", "es"]), true);
-
-        assert!(matches!(plan.task, Task::Translate));
-        assert_eq!(plan.language.as_deref(), Some("es"));
-        assert_eq!(plan.target_language.as_deref(), Some("en"));
-    }
-
-    #[test]
-    fn transcribe_cpp_run_plan_requires_model_translation_support() {
-        let plan = transcribe_cpp_run_plan(true, "es", &languages(&["en", "es"]), false);
-
-        assert!(matches!(plan.task, Task::Transcribe));
-        assert_eq!(plan.language.as_deref(), Some("es"));
-        assert_eq!(plan.target_language, None);
+        assert_eq!(transcribe_cpp_language("es", &supported).as_deref(), Some("es"));
+        assert_eq!(transcribe_cpp_language("pt", &supported), None);
+        assert_eq!(transcribe_cpp_language("auto", &supported), None);
     }
 }
 

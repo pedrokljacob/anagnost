@@ -5,7 +5,6 @@ import {
   AudioLines,
   ChevronDown,
   Globe,
-  Languages,
   RefreshCw,
   Search,
 } from "lucide-react";
@@ -35,7 +34,6 @@ export const ModelsSettings: React.FC = () => {
   const [switchingModelId, setSwitchingModelId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStreaming, setFilterStreaming] = useState(false);
-  const [filterTranslation, setFilterTranslation] = useState(false);
   const [languageFilter, setLanguageFilter] = useState("all");
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
   const [languageSearch, setLanguageSearch] = useState("");
@@ -185,7 +183,6 @@ export const ModelsSettings: React.FC = () => {
         if (!modelSupportsLanguage(model, languageFilter)) return false;
       }
       if (filterStreaming && !model.supports_streaming) return false;
-      if (filterTranslation && !model.supports_translation) return false;
 
       if (q) {
         const haystack = `${model.name} ${model.description}`.toLowerCase();
@@ -193,7 +190,7 @@ export const ModelsSettings: React.FC = () => {
       }
       return true;
     });
-  }, [models, languageFilter, filterStreaming, filterTranslation, searchQuery]);
+  }, [models, languageFilter, filterStreaming, searchQuery]);
 
   // Split filtered models into downloaded (including custom) and available sections
   const { downloadedModels, availableModels } = useMemo(() => {
@@ -297,20 +294,6 @@ export const ModelsSettings: React.FC = () => {
                 }`}
               >
                 <AudioLines className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterTranslation((enabled) => !enabled)}
-                title={t("settings.models.filters.translation")}
-                aria-label={t("settings.models.filters.translation")}
-                aria-pressed={filterTranslation}
-                className={`flex items-center justify-center w-8 h-8 text-sm font-medium rounded-lg transition-colors ${
-                  filterTranslation
-                    ? "bg-logo-primary/20 text-logo-primary hover:bg-logo-primary/30"
-                    : "bg-mid-gray/10 text-text/60 hover:bg-mid-gray/20"
-                }`}
-              >
-                <Languages className="w-3.5 h-3.5" />
               </button>
               {/* Language filter dropdown */}
               <div className="relative" ref={languageDropdownRef}>

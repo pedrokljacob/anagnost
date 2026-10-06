@@ -137,8 +137,6 @@
       "singleLanguage": "Supports this language only",
       "languageCount": "{{total}} languages",
       "languageOnly": "{{language}} only",
-      "translation": "Can translate to English",
-      "translate": "Translate",
       "streaming": "Shows live transcription as you speak"
     }
   },
@@ -208,8 +206,7 @@
       "deleteTitle": "Delete Model",
       "filters": {
         "allLanguages": "All Languages",
-        "streaming": "Filter models that support live streaming transcription",
-        "translation": "Filter models that support translation to English"
+        "streaming": "Filter models that support live streaming transcription"
       },
       "rescan": {
         "label": "Rescan",
@@ -344,10 +341,6 @@
           "superEnter": "Super+Enter",
           "ctrlEnter": "Ctrl+Enter"
         }
-      },
-      "translateToEnglish": {
-        "label": "Translate to English",
-        "description": "Automatically translate speech from other languages to English during transcription."
       },
       "modelUnload": {
         "title": "Unload Model",
