@@ -184,8 +184,6 @@ mockIPC(
         return true;
       case "fetch_post_process_models":
         return ["gpt-5-mini", "gpt-5", "gpt-4.1-mini"];
-      case "get_windows_microphone_permission_status":
-        return { supported: false, overall_access: "allowed" };
       case "plugin:app|version":
         return "0.9.8";
       case "plugin:app|name":

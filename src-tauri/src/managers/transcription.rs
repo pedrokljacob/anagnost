@@ -1790,16 +1790,8 @@ fn drain_until_finalize(rx: mpsc::Receiver<StreamCmd>) {
 /// before the first model load.
 pub fn init_transcribe_backend() {
     transcribe_cpp::init_logging();
-    match transcribe_cpp::init_backends_default() {
-        Ok(()) => {
-            if transcribe_gpu_disabled_for_host() {
-                warn!(
-                    "Windows x64 build is running under emulation on an ARM64 host; \
-                     disabling transcribe.cpp GPU acceleration and using CPU"
-                );
-            }
-        }
-        Err(e) => warn!("Failed to initialize transcribe-cpp backends: {}", e),
+    if let Err(e) = transcribe_cpp::init_backends_default() {
+        warn!("Failed to initialize transcribe-cpp backends: {}", e);
     }
 }
 
@@ -1811,7 +1803,7 @@ pub fn init_transcribe_backend() {
 /// so the app calls this from a background thread instead of its startup
 /// path. A model load that comes first waits on the same one-time compile.
 pub fn report_compute_devices() {
-    let devices = transcribe_compute_devices();
+    let devices = transcribe_cpp::devices();
     info!(
         "transcribe-cpp initialized with {} compute device(s): [{}]",
         devices.len(),
@@ -1828,7 +1820,7 @@ pub fn report_compute_devices() {
 /// value to pass to `--device-index`. Backends must be initialized first
 /// (see [`init_transcribe_backend`]).
 pub fn describe_compute_devices() -> Vec<String> {
-    transcribe_compute_devices()
+    transcribe_cpp::devices()
         .into_iter()
         .map(|d| {
             let idx = d
@@ -1854,7 +1846,7 @@ pub fn describe_compute_devices() -> Vec<String> {
 /// is an exact selection too; only an omitted index requests automatic device
 /// selection. Errors if the index isn't a registered, loadable primary device.
 fn resolve_device_index(index: usize) -> Result<(Backend, Option<transcribe_cpp::Device>)> {
-    let device = transcribe_compute_devices()
+    let device = transcribe_cpp::devices()
         .into_iter()
         .find(|d| d.index == Some(index))
         .ok_or_else(|| {
@@ -1881,17 +1873,9 @@ fn resolve_device_index(index: usize) -> Result<(Backend, Option<transcribe_cpp:
 /// `Auto` lets the library pick the best device (with CPU fallback), while
 /// `Cpu` forces strict CPU. `Gpu` only remains as the companion setting for an
 /// exact device; without a valid exact device it has the retired generic GPU
-/// state's new Auto semantics. An emulated x64 process on Windows ARM64 forces
-/// strict CPU for every setting.
+/// state's new Auto semantics.
 fn select_transcribe_backend(setting: TranscribeAcceleratorSetting) -> Backend {
-    select_transcribe_backend_for_host(setting, transcribe_gpu_disabled_for_host())
-}
-
-fn select_transcribe_backend_for_host(
-    setting: TranscribeAcceleratorSetting,
-    gpu_disabled: bool,
-) -> Backend {
-    match effective_transcribe_accelerator(setting, gpu_disabled) {
+    match setting {
         TranscribeAcceleratorSetting::Cpu => Backend::Cpu,
         TranscribeAcceleratorSetting::Auto | TranscribeAcceleratorSetting::Gpu => Backend::Auto,
     }
@@ -1905,11 +1889,11 @@ fn resolve_gpu_device(
     setting: TranscribeAcceleratorSetting,
     gpu_device: Option<&str>,
 ) -> Option<transcribe_cpp::Device> {
-    if transcribe_gpu_disabled_for_host() || setting != TranscribeAcceleratorSetting::Gpu {
+    if setting != TranscribeAcceleratorSetting::Gpu {
         return None;
     }
     let gpu_device = gpu_device?;
-    let resolved = transcribe_compute_devices().into_iter().find(|device| {
+    let resolved = transcribe_cpp::devices().into_iter().find(|device| {
         is_transcribe_gpu_device(device) && transcribe_device_key(device) == gpu_device
     });
     if resolved.is_none() {
@@ -1974,51 +1958,11 @@ pub struct GpuDeviceOption {
 
 static GPU_DEVICES: OnceLock<Vec<GpuDeviceOption>> = OnceLock::new();
 
-fn transcribe_gpu_disabled_for_host() -> bool {
-    crate::utils::is_windows_x64_emulated_on_arm64()
-}
-
-fn effective_transcribe_accelerator(
-    setting: TranscribeAcceleratorSetting,
-    gpu_disabled: bool,
-) -> TranscribeAcceleratorSetting {
-    if gpu_disabled {
-        TranscribeAcceleratorSetting::Cpu
-    } else {
-        setting
-    }
-}
-
 fn is_transcribe_gpu_device(device: &transcribe_cpp::Device) -> bool {
     matches!(
         device.device_type,
         transcribe_cpp::DeviceType::Gpu | transcribe_cpp::DeviceType::Igpu
     )
-}
-
-fn transcribe_device_allowed(kind: &str, gpu_disabled: bool) -> bool {
-    !gpu_disabled || matches!(kind, "cpu" | "accel")
-}
-
-fn transcribe_compute_devices() -> Vec<transcribe_cpp::Device> {
-    let devices = transcribe_cpp::devices();
-    let gpu_disabled = transcribe_gpu_disabled_for_host();
-    if !gpu_disabled {
-        return devices;
-    }
-
-    devices
-        .into_iter()
-        .filter(|device| transcribe_device_allowed(&device.kind, gpu_disabled))
-        .collect()
-}
-
-fn available_transcribe_accelerators(gpu_disabled: bool) -> Vec<String> {
-    if gpu_disabled {
-        vec!["cpu".to_string()]
-    } else {
-        vec!["auto".to_string(), "cpu".to_string(), "gpu".to_string()]
-    }
 }
 
 fn cached_gpu_devices() -> &'static [GpuDeviceOption] {
@@ -2027,7 +1971,7 @@ fn cached_gpu_devices() -> &'static [GpuDeviceOption] {
     // the backend's device_id where available and its name otherwise (Metal).
     // `total_vram_mb` is 0 when the backend does not report capacity.
     GPU_DEVICES.get_or_init(|| {
-        transcribe_compute_devices()
+        transcribe_cpp::devices()
             .into_iter()
             .filter(is_transcribe_gpu_device)
             .map(|d| GpuDeviceOption {
@@ -2055,10 +1999,8 @@ pub fn get_available_accelerators() -> AvailableAccelerators {
         .map(|a| a.to_string())
         .collect();
 
-    let transcribe_options = available_transcribe_accelerators(transcribe_gpu_disabled_for_host());
-
     AvailableAccelerators {
-        transcribe: transcribe_options,
+        transcribe: vec!["auto".to_string(), "cpu".to_string(), "gpu".to_string()],
         ort: ort_options,
         gpu_devices: cached_gpu_devices().to_vec(),
     }
@@ -2070,60 +2012,6 @@ mod tests {
 
     fn languages(codes: &[&str]) -> Vec<String> {
         codes.iter().map(|code| (*code).to_string()).collect()
-    }
-
-    #[test]
-    fn normal_hosts_preserve_every_transcribe_accelerator_setting() {
-        for setting in [
-            TranscribeAcceleratorSetting::Auto,
-            TranscribeAcceleratorSetting::Cpu,
-            TranscribeAcceleratorSetting::Gpu,
-        ] {
-            assert_eq!(effective_transcribe_accelerator(setting, false), setting);
-        }
-        assert_eq!(
-            available_transcribe_accelerators(false),
-            ["auto", "cpu", "gpu"]
-        );
-        assert_eq!(
-            select_transcribe_backend_for_host(TranscribeAcceleratorSetting::Auto, false),
-            Backend::Auto
-        );
-        assert_eq!(
-            select_transcribe_backend_for_host(TranscribeAcceleratorSetting::Cpu, false),
-            Backend::Cpu
-        );
-        assert_eq!(
-            select_transcribe_backend_for_host(TranscribeAcceleratorSetting::Gpu, false),
-            Backend::Auto
-        );
-        for kind in ["cpu", "accel", "metal", "cuda", "vulkan", "gpu"] {
-            assert!(transcribe_device_allowed(kind, false));
-        }
-    }
-
-    #[test]
-    fn emulated_x64_on_arm64_forces_every_transcribe_setting_to_cpu() {
-        for setting in [
-            TranscribeAcceleratorSetting::Auto,
-            TranscribeAcceleratorSetting::Cpu,
-            TranscribeAcceleratorSetting::Gpu,
-        ] {
-            assert_eq!(
-                effective_transcribe_accelerator(setting, true),
-                TranscribeAcceleratorSetting::Cpu
-            );
-            assert_eq!(
-                select_transcribe_backend_for_host(setting, true),
-                Backend::Cpu
-            );
-        }
-        assert_eq!(available_transcribe_accelerators(true), ["cpu"]);
-        assert!(transcribe_device_allowed("cpu", true));
-        assert!(transcribe_device_allowed("accel", true));
-        for kind in ["metal", "cuda", "vulkan", "gpu", "unknown"] {
-            assert!(!transcribe_device_allowed(kind, true));
-        }
     }
 
     #[test]

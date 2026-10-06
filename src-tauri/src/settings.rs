@@ -205,7 +205,7 @@ impl Default for KeyboardImplementation {
 
 impl Default for PasteMethod {
     fn default() -> Self {
-        // Default to CtrlV for macOS and Windows, Direct for Linux
+        // Default to CtrlV for macOS, Direct for Linux
         #[cfg(target_os = "linux")]
         return PasteMethod::Direct;
         #[cfg(not(target_os = "linux"))]
@@ -412,7 +412,7 @@ pub struct AppSettings {
     pub paste_delay_after_ms: u64,
     /// Debug-gated ("beta") receipt-sequenced paste: restore the clipboard only
     /// after the target app actually reads the transcript, instead of after a
-    /// fixed delay. See `paste_tx`. macOS and Windows only.
+    /// fixed delay. See `paste_tx`. macOS only.
     #[serde(default)]
     pub reliable_paste: bool,
     #[serde(default = "default_typing_tool")]
@@ -757,14 +757,10 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
 pub const SETTINGS_STORE_PATH: &str = "settings_store.json";
 
 pub fn get_default_settings() -> AppSettings {
-    #[cfg(target_os = "windows")]
-    let default_shortcut = "ctrl+space";
     #[cfg(target_os = "macos")]
     let default_shortcut = "option+space";
-    #[cfg(target_os = "linux")]
+    #[cfg(not(target_os = "macos"))]
     let default_shortcut = "ctrl+space";
-    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
-    let default_shortcut = "alt+space";
 
     let mut bindings = HashMap::new();
     bindings.insert(
@@ -777,14 +773,10 @@ pub fn get_default_settings() -> AppSettings {
             current_binding: default_shortcut.to_string(),
         },
     );
-    #[cfg(target_os = "windows")]
-    let default_post_process_shortcut = "ctrl+shift+space";
     #[cfg(target_os = "macos")]
     let default_post_process_shortcut = "option+shift+space";
-    #[cfg(target_os = "linux")]
+    #[cfg(not(target_os = "macos"))]
     let default_post_process_shortcut = "ctrl+shift+space";
-    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
-    let default_post_process_shortcut = "alt+shift+space";
 
     bindings.insert(
         "transcribe_with_post_process".to_string(),

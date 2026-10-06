@@ -4,152 +4,19 @@ fn main() {
 
     generate_tray_translations();
 
-    // Linux ships transcribe-cpp as a shared libtranscribe + loadable ggml
-    // backend modules (the `dynamic-backends` posture in Cargo.toml). Bake an
-    // $ORIGIN-relative rpath into the `handy` binary so it finds libtranscribe
-    // next to it in the package — deb/rpm install into the app-private
-    // `/usr/lib/Handy` (the dir tauri already uses for resources; keeps
-    // Handy's libs out of the ldconfig-scanned `/usr/lib`, issue #1639) while
-    // the AppImage keeps them in `usr/lib` (linuxdeploy's layout), hence both
-    // entries. transcribe's
-    // init_backends_default() then loads the ggml modules co-located there.
-    // (Windows resolves DLLs from the exe directory, so it needs no rpath;
-    // macOS links transcribe-cpp statically via the `metal` feature.)
-    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux") {
-        println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN/../lib/Handy:$ORIGIN/../lib");
-    }
-
     // Stage transcribe-cpp's shared runtime libraries (and the dlopen'd ggml
-    // backend modules) for the installer. Self-gates on the shared /
-    // dynamic-backends posture used by Linux and Windows; it's a no-op for the
-    // static macOS `metal` build, where there is nothing to ship.
+    // backend modules) into `transcribe-libs/`. Self-gates on the shared /
+    // dynamic-backends posture of the Linux test bench; it's a no-op for the
+    // static macOS `metal` build, where there is nothing to stage.
     stage_transcribe_runtime_libs();
-
-    // When ORT is dynamically linked (Windows CI sets ORT_LIB_LOCATION +
-    // ORT_PREFER_DYNAMIC_LINK to a baseline ONNX Runtime), ship its onnxruntime.dll
-    // next to Handy.exe so the app loads our baseline build instead of statically
-    // embedding pyke's /arch:AVX2 one (which crashes at startup on pre-Haswell CPUs).
-    stage_onnxruntime_dll();
-
-    // Must run after transcribe staging because that helper recreates transcribe-libs/.
-    stage_vc_runtime_dlls();
 
     tauri_build::build()
 }
 
-/// Stage the MSVC runtime DLLs into `transcribe-libs/` for app-local deployment.
-///
-/// Handy's native stack links the VC++ runtime dynamically (/MD). Shipping the
-/// DLLs beside `handy.exe` covers machines with no redistributable installed and
-/// machines whose system redist is older than the CI toolset (issue #1527).
-///
-/// Driven by `ANAGNOST_VC_REDIST_DIRS`, set by CI to the redist dirs from the same
-/// Visual Studio install that compiled the native code. Copies only the runtime
-/// DLL families Handy imports and no-ops when the env var is unset.
-fn stage_vc_runtime_dlls() {
-    use std::path::PathBuf;
-
-    println!("cargo:rerun-if-env-changed=ANAGNOST_VC_REDIST_DIRS");
-
-    let Some(redist_dirs) = std::env::var_os("ANAGNOST_VC_REDIST_DIRS") else {
-        return;
-    };
-    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
-        return;
-    }
-
-    let dest = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("transcribe-libs");
-    std::fs::create_dir_all(&dest).expect("create transcribe-libs staging dir");
-
-    let mut copied: Vec<String> = Vec::new();
-    for dir in std::env::split_paths(&redist_dirs) {
-        for entry in std::fs::read_dir(&dir)
-            .unwrap_or_else(|e| panic!("ANAGNOST_VC_REDIST_DIRS: read {}: {e}", dir.display()))
-            .flatten()
-        {
-            let src = entry.path();
-            let name = src
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or("")
-                .to_string();
-            let lower = name.to_lowercase();
-            let wanted = lower.ends_with(".dll")
-                && (lower.starts_with("msvcp140")
-                    || lower.starts_with("vcruntime140")
-                    || lower.starts_with("vcomp140"));
-            if wanted {
-                std::fs::copy(&src, dest.join(&name))
-                    .unwrap_or_else(|e| panic!("copy {}: {e}", src.display()));
-                copied.push(lower);
-            }
-        }
-    }
-
-    // Fail the build rather than ship an installer that regresses issue #1527.
-    for required in ["msvcp140.dll", "vcruntime140.dll"] {
-        if !copied.iter().any(|n| n == required) {
-            panic!(
-                "ANAGNOST_VC_REDIST_DIRS is set but {required} was not found in it; \
-                 the app-local VC++ runtime would be incomplete and Handy would \
-                 crash on machines without a current redist (issue #1527)"
-            );
-        }
-    }
-    println!(
-        "cargo:warning=Staged {} VC++ runtime DLL(s) for app-local deployment",
-        copied.len()
-    );
-}
-
-/// Copy the dynamically-linked ONNX Runtime `onnxruntime.dll` into the
-/// `transcribe-libs/` staging dir so `tauri.windows.conf.json` bundles it beside
-/// `Handy.exe` (Windows resolves DLLs from the executable's directory).
-///
-/// No-op unless `ORT_PREFER_DYNAMIC_LINK` + `ORT_LIB_LOCATION` are set for a Windows
-/// target — i.e. the CI dynamic-link path. A plain static build (no env) skips this
-/// and keeps the embedded ORT, and non-Windows targets bundle their ORT elsewhere
-/// (see build.yml frameworks/deb.files steps), so they are ignored here.
-fn stage_onnxruntime_dll() {
-    use std::path::PathBuf;
-
-    println!("cargo:rerun-if-env-changed=ORT_LIB_LOCATION");
-    println!("cargo:rerun-if-env-changed=ORT_PREFER_DYNAMIC_LINK");
-
-    if std::env::var_os("ORT_PREFER_DYNAMIC_LINK").is_none() {
-        return;
-    }
-    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
-        return;
-    }
-    let Some(lib_location) = std::env::var_os("ORT_LIB_LOCATION") else {
-        return;
-    };
-
-    let src = PathBuf::from(&lib_location).join("onnxruntime.dll");
-    if !src.exists() {
-        panic!(
-            "ORT_PREFER_DYNAMIC_LINK is set but {} does not exist; a dynamic ORT \
-             build must supply onnxruntime.dll to bundle",
-            src.display()
-        );
-    }
-
-    // transcribe-libs/ is already created by stage_transcribe_runtime_libs() on the
-    // Windows x86_64 dynamic-backends build and bundled by tauri.windows.conf.json;
-    // create it defensively so this is self-contained.
-    let dest_dir =
-        PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("transcribe-libs");
-    std::fs::create_dir_all(&dest_dir).expect("create transcribe-libs staging dir");
-    std::fs::copy(&src, dest_dir.join("onnxruntime.dll"))
-        .unwrap_or_else(|e| panic!("copy {}: {e}", src.display()));
-    println!("cargo:warning=Staged onnxruntime.dll for Windows bundling");
-}
-
-/// Stage transcribe-cpp's shared runtime libraries into `transcribe-libs/` so the
-/// installer can ship them next to the executable. One code path covers Windows
-/// (`.dll`) and Linux (versioned `.so`); the match-by-name filter below handles
-/// both naming schemes.
+/// Stage transcribe-cpp's shared runtime libraries into `transcribe-libs/` for
+/// the Linux test bench, which runs the binary with `LD_LIBRARY_PATH` pointing
+/// there (see BUILD.md). Linux versions its libs (`.so.0`, `.so.0.2.0`); the
+/// match-by-name filter below handles that.
 ///
 /// Source dirs arrive as `DEP_TRANSCRIBE_CPP_*`: the sys crate (`links =
 /// "transcribe"`) emits its install dirs and the wrapper (`links =
@@ -158,10 +25,6 @@ fn stage_onnxruntime_dll() {
 /// dynamic-backends build; a static build (macOS `metal`) leaves them unset, so
 /// this is a no-op there. `RUNTIME_DIR` (core libs) and `MODULE_DIR` (dlopen'd
 /// ggml modules) may be the same dir — the `BTreeSet` below dedups them.
-///
-/// Where the staged dir lands: Windows bundles it beside `handy.exe` (DLLs resolve
-/// from the exe dir); Linux deb/rpm map it into the app-private `/usr/lib/Handy`
-/// and the AppImage into `usr/lib`, both on the binary's rpath.
 fn stage_transcribe_runtime_libs() {
     use std::collections::BTreeSet;
     use std::path::PathBuf;
@@ -179,7 +42,7 @@ fn stage_transcribe_runtime_libs() {
     //   MODULE_DIR  : the dlopen'd ggml backend modules (the per-ISA ggml-cpu-*
     //                 and ggml-vulkan), dynamic-backends only. Often — but not
     //                 always — the SAME directory as RUNTIME_DIR (it is on Linux).
-    // BOTH must sit next to the executable, or init_backends_default() finds the
+    // BOTH must be on the loader path, or init_backends_default() finds the
     // core libs but zero loadable compute backends and registers no devices.
     let mut dirs = BTreeSet::new();
     dirs.insert(PathBuf::from(runtime_dir));
@@ -188,8 +51,8 @@ fn stage_transcribe_runtime_libs() {
     }
 
     let dest = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("transcribe-libs");
-    // Recreate clean so a renamed or dropped ggml module can never linger in the
-    // package from a previous build.
+    // Recreate clean so a renamed or dropped ggml module can never linger from
+    // a previous build.
     let _ = std::fs::remove_dir_all(&dest);
     std::fs::create_dir_all(&dest).expect("create transcribe-libs staging dir");
 
@@ -207,10 +70,7 @@ fn stage_transcribe_runtime_libs() {
             // Match by NAME, not extension: Linux versions its libs
             // (libtranscribe.so.0, .so.0.2.0) and the loader needs the SONAME, so
             // an extension-only filter would miss the versioned names entirely.
-            let is_lib = name.ends_with(".dll")
-                || name.ends_with(".dylib")
-                || name.ends_with(".so")
-                || name.contains(".so.");
+            let is_lib = name.ends_with(".dylib") || name.ends_with(".so") || name.contains(".so.");
             if is_lib {
                 libs.insert(name.to_string(), src);
             }
@@ -218,17 +78,16 @@ fn stage_transcribe_runtime_libs() {
     }
 
     // A Linux install dir carries each lib as a symlink chain (for example,
-    // libfoo.so -> libfoo.so.0.2 -> libfoo.so.0.2.0), and tauri's deb/rpm
-    // bundlers flatten symlinks into real files. Staging every name would
-    // triplicate each lib and draw "not a symbolic link" warnings from ldconfig
-    // (issue #1639). Only one name per lib is needed at runtime: the shortest
+    // libfoo.so -> libfoo.so.0.2 -> libfoo.so.0.2.0), and staging every name
+    // would triplicate each lib. Only one name per lib is needed at runtime: the
+    // shortest
     // versioned name is the SONAME for linked core libs, while a dlopen'd ggml
     // backend module generally has only its bare unversioned name. Stage that
     // name; `fs::copy` dereferences the symlink so the staged file is real.
     let mut best: std::collections::BTreeMap<&str, (&str, &PathBuf, usize)> = Default::default();
     for (name, src) in &libs {
         let (stem, rank) = match split_versioned_so(name) {
-            // Windows/macOS names (.dll/.dylib) are unversioned: keep as-is.
+            // macOS names (.dylib) are unversioned: keep as-is.
             None => (name.as_str(), 0),
             // Prefer the shortest versioned name (`.so.0`, `.so.0.2`, etc.),
             // then the bare `.so`; a full version is only the fallback when the
@@ -253,7 +112,7 @@ fn stage_transcribe_runtime_libs() {
     if copied == 0 {
         panic!(
             "no transcribe-cpp runtime libraries found under {dirs:?}; a shared / \
-             dynamic-backends build must ship them or the app registers zero \
+             dynamic-backends build needs them or the app registers zero \
              compute devices"
         );
     }

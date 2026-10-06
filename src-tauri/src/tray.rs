@@ -138,17 +138,7 @@ pub fn get_current_theme(app: &AppHandle) -> AppTheme {
         // On Linux, always use the colored theme
         AppTheme::Colored
     } else {
-        // On Windows the tray icon sits on the taskbar, which follows the
-        // *system* theme (SystemUsesLightTheme), not the app theme. With the
-        // "Custom" personalization mode the two can differ (e.g. dark taskbar
-        // + light apps), and the window theme would pick an icon that is
-        // invisible against the taskbar.
-        #[cfg(target_os = "windows")]
-        if let Some(theme) = windows_taskbar_theme() {
-            return theme;
-        }
-
-        // On other platforms, map system theme to our app theme
+        // Elsewhere, map the system theme to our app theme
         if let Some(main_window) = app.get_webview_window("main") {
             match main_window.theme().unwrap_or(Theme::Dark) {
                 Theme::Light => AppTheme::Light,
@@ -159,27 +149,6 @@ pub fn get_current_theme(app: &AppHandle) -> AppTheme {
             AppTheme::Dark
         }
     }
-}
-
-/// Reads the Windows taskbar theme from the registry.
-///
-/// Returns None if the value is missing (older Windows 10 builds default to a
-/// dark taskbar there, but falling back to the window theme is safer than
-/// guessing).
-#[cfg(target_os = "windows")]
-fn windows_taskbar_theme() -> Option<AppTheme> {
-    use winreg::enums::HKEY_CURRENT_USER;
-    use winreg::RegKey;
-
-    let personalize = RegKey::predef(HKEY_CURRENT_USER)
-        .open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize")
-        .ok()?;
-    let system_uses_light: u32 = personalize.get_value("SystemUsesLightTheme").ok()?;
-    Some(if system_uses_light == 1 {
-        AppTheme::Light
-    } else {
-        AppTheme::Dark
-    })
 }
 
 /// Gets the appropriate icon path for the given theme and state.

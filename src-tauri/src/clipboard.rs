@@ -808,7 +808,7 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
             // On success it fully handles the paste (including auto-submit and
             // clipboard handling) asynchronously; on failure fall through to
             // the legacy path untouched.
-            #[cfg(any(target_os = "macos", target_os = "windows"))]
+            #[cfg(target_os = "macos")]
             if settings.reliable_paste {
                 let reliable_result = with_enigo(&app_handle, |enigo| {
                     crate::paste_tx::try_reliable_paste(

@@ -28,7 +28,6 @@ pub use cli::CliArgs;
 #[cfg(debug_assertions)]
 use specta_typescript::{BigIntExportBehavior, Typescript};
 use tauri_specta::{collect_commands, collect_events, Builder};
-pub use utils::env_flag_enabled;
 
 use env_filter::Builder as EnvFilterBuilder;
 use managers::audio::AudioRecordingManager;
@@ -155,32 +154,6 @@ fn apply_startup_activation_policy(app: &mut tauri::App, headless_mode: bool) {
     }
 }
 
-#[allow(unused_variables)]
-fn should_force_show_permissions_window(app: &AppHandle) -> bool {
-    #[cfg(target_os = "windows")]
-    {
-        let model_manager = app.state::<Arc<ModelManager>>();
-        let has_downloaded_models = model_manager
-            .get_available_models()
-            .iter()
-            .any(|model| model.is_downloaded);
-
-        if !has_downloaded_models {
-            return false;
-        }
-
-        let status = commands::audio::get_windows_microphone_permission_status();
-        if status.supported && status.overall_access == commands::audio::PermissionAccess::Denied {
-            log::info!(
-                "Windows microphone permissions are denied; forcing main window visible for onboarding"
-            );
-            return true;
-        }
-    }
-
-    false
-}
-
 fn initialize_core_logic(app_handle: &AppHandle) {
     // Note: Enigo (keyboard/mouse simulation) is NOT initialized here.
     // The frontend is responsible for calling the `initialize_enigo` command
@@ -233,7 +206,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     // Choose the appropriate initial icon based on theme
     let initial_icon_path = tray::get_icon_path(initial_theme, tray::TrayIconState::Idle, false);
 
-    let mut tray_builder = TrayIconBuilder::new()
+    let tray = TrayIconBuilder::new()
         .icon(
             Image::from_path(
                 app_handle
@@ -244,38 +217,8 @@ fn initialize_core_logic(app_handle: &AppHandle) {
             .unwrap(),
         )
         .tooltip(tray::tray_tooltip())
-        .icon_as_template(true);
-
-    // Windows notification-area convention: left click opens the app, right click
-    // shows the menu. Elsewhere (macOS menu bar, Linux) the menu stays on left click.
-    #[cfg(target_os = "windows")]
-    {
-        tray_builder = tray_builder
-            .show_menu_on_left_click(false)
-            .on_tray_icon_event(|tray, event| {
-                use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
-                let opens_window = matches!(
-                    event,
-                    TrayIconEvent::Click {
-                        button: MouseButton::Left,
-                        button_state: MouseButtonState::Up,
-                        ..
-                    } | TrayIconEvent::DoubleClick {
-                        button: MouseButton::Left,
-                        ..
-                    }
-                );
-                if opens_window {
-                    show_main_window(tray.app_handle());
-                }
-            });
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        tray_builder = tray_builder.show_menu_on_left_click(true);
-    }
-
-    let tray = tray_builder
+        .icon_as_template(true)
+        .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "settings" => {
                 show_main_window(app);
@@ -689,8 +632,6 @@ pub fn run(cli_args: CliArgs) {
             commands::models::get_current_model,
             commands::models::rescan_local_models,
             commands::audio::update_microphone_mode,
-            commands::audio::get_windows_microphone_permission_status,
-            commands::audio::open_microphone_privacy_settings,
             commands::audio::get_available_microphones,
             commands::audio::set_selected_microphone,
             commands::audio::get_available_output_devices,
@@ -813,13 +754,6 @@ pub fn run(cli_args: CliArgs) {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(cli_args.clone())
         .setup(move |app| {
-            #[cfg(target_os = "windows")]
-            log::info!(
-                "Vulkan layer policy: VK_LOADER_LAYERS_DISABLE={:?}, ANAGNOST_KEEP_VULKAN_IMPLICIT_LAYERS={}",
-                std::env::var_os("VK_LOADER_LAYERS_DISABLE"),
-                utils::env_flag_enabled("ANAGNOST_KEEP_VULKAN_IMPLICIT_LAYERS"),
-            );
-
             specta_builder.mount_events(app);
 
             // Headless one-shot path (`--transcribe-file` / `--list-devices` /
@@ -867,43 +801,15 @@ pub fn run(cli_args: CliArgs) {
 
             // Create main window programmatically so it keeps no browsing data
             // on disk.
-            let win_builder =
-                tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
-                    .title("Anagnost")
-                    .inner_size(680.0, 570.0)
-                    .min_inner_size(680.0, 570.0)
-                    .resizable(true)
-                    .maximizable(true)
-                    .visible(false)
-                    .incognito(true);
-
-            // Only used on Windows, to disable WebView2 browser accelerators.
-            #[cfg_attr(not(target_os = "windows"), allow(unused_variables))]
-            let main_window = win_builder.build()?;
-
-            // Disable WebView2 browser accelerators (F5, F6, Ctrl+F, F12, ...).
-            // A settings window has no use for them, and pressing F6 while
-            // recording a shortcut was reported to turn the whole window white
-            // (cjpais/Handy#1940), likely by triggering WebView2 focus cycling.
-            // DevTools stays enabled; only the F12 accelerator is lost.
-            #[cfg(target_os = "windows")]
-            {
-                let _ = main_window.with_webview(|webview| unsafe {
-                    use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Settings3;
-                    use windows::core::Interface;
-
-                    let result = webview
-                        .controller()
-                        .CoreWebView2()
-                        .and_then(|core| core.Settings())
-                        .and_then(|settings| settings.cast::<ICoreWebView2Settings3>())
-                        .and_then(|settings| settings.SetAreBrowserAcceleratorKeysEnabled(false));
-
-                    if let Err(error) = result {
-                        log::warn!("Failed to disable WebView2 browser accelerators: {error}");
-                    }
-                });
-            }
+            tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
+                .title("Anagnost")
+                .inner_size(680.0, 570.0)
+                .min_inner_size(680.0, 570.0)
+                .resizable(true)
+                .maximizable(true)
+                .visible(false)
+                .incognito(true)
+                .build()?;
 
             let mut settings = get_settings(app.handle());
 
@@ -958,15 +864,13 @@ pub fn run(cli_args: CliArgs) {
 
             // Show main window only if not starting hidden.
             // CLI --start-hidden flag overrides the setting.
-            // But if permission onboarding is required, always show the window.
             let should_hide = settings.start_hidden || cli_args.start_hidden;
-            let should_force_show = should_force_show_permissions_window(&app_handle);
 
             // If start_hidden but tray is disabled, we must show the window
             // anyway. Without a tray icon, the dock is the only way back in.
             // Keep in sync with `apply_startup_activation_policy` (macOS).
             let tray_available = settings.show_tray_icon && !cli_args.no_tray;
-            if should_force_show || !should_hide || !tray_available {
+            if !should_hide || !tray_available {
                 show_main_window(&app_handle);
             }
 
