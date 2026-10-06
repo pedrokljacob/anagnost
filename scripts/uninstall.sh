@@ -1,7 +1,9 @@
 #!/bin/bash
-# Remove every trace the app leaves on macOS: app data and logs, the caches,
-# preferences and crash reports macOS keeps for it, and its privacy
-# permissions.
+# Remove the app's own files from this Mac, and the state macOS keeps for it
+# as far as a script can: app data and logs, caches, preferences, crash
+# reports and privacy permissions. It does not touch backups (Time Machine,
+# local snapshots), downloaded disk images, other user accounts, other apps'
+# data, or text the app pasted elsewhere. See BUILD.md, "Uninstall".
 #
 # Usage: scripts/uninstall.sh [--app] [--yes]
 #   --app  also delete /Applications/$APP_NAME.app
@@ -12,12 +14,14 @@
 #
 # It first checks what it cannot undo by itself (the login item, the running
 # app). If any of it is still on, it says what to turn off and stops without
-# deleting anything; run it again afterwards.
+# deleting anything; run it again afterwards. It exits non-zero if some step
+# failed, and says what to finish by hand.
 
 set -euo pipefail
 
 APP_NAME="Anagnost"
 BUNDLE_ID="com.pedrojacob.anagnost"
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 
 remove_app=false
 assume_yes=false
@@ -95,6 +99,11 @@ esac
 if pgrep -ix "$APP_NAME" >/dev/null; then
   blockers+=("Quit $APP_NAME (menu bar icon > Quit).")
 fi
+# Deleting a bundle this account cannot write to would fail halfway, after
+# the app data is already gone. Same check as install-mac.sh.
+if $remove_app && [[ -e "$app" && ! -w "$app" ]]; then
+  blockers+=("Delete $app in Finder: you lack write access to it, so this script cannot.")
+fi
 
 if ((${#blockers[@]} > 0)); then
   echo "Nothing was deleted. First:" >&2
@@ -110,12 +119,18 @@ fi
 # The single-instance socket name replaces '.' and '-' with '_'.
 socket_id="${BUNDLE_ID//[.-]/_}"
 
+# Everything the app writes is under $data_dir. The rest is what macOS keeps
+# for any app, listed whether or not this app triggers it today, so a
+# regression (a logger writing to ~/Library/Logs, a webview keeping cookies)
+# is still cleaned up.
 paths=(
   "$data_dir"
   "$HOME/Library/Caches/$BUNDLE_ID"
+  "$HOME/Library/Logs/$BUNDLE_ID"
   "$HOME/Library/WebKit/$BUNDLE_ID"
   "$HOME/Library/HTTPStorages/$BUNDLE_ID"
   "$HOME/Library/HTTPStorages/$BUNDLE_ID.binarycookies"
+  "$HOME/Library/Cookies/$BUNDLE_ID.binarycookies"
   "$HOME/Library/Preferences/$BUNDLE_ID.plist"
   "$HOME/Library/Saved Application State/$BUNDLE_ID.savedState"
   "$(getconf DARWIN_USER_CACHE_DIR)$BUNDLE_ID"
@@ -124,14 +139,17 @@ paths=(
 )
 shopt -s nullglob
 paths+=("$HOME/Library/Preferences/ByHost/$BUNDLE_ID".*.plist)
-# Crash and resource reports are named after the executable, whose case
-# differs from the app's (anagnost-2026-01-01-120000.ips,
-# anagnost_2026-01-01-120000_Host.cpu_resource.diag).
+# Crash, hang and resource reports, and the crash dialog's preferences, are
+# named after the executable, whose case differs from the app's
+# (anagnost-2026-01-01-120000.ips, anagnost_2026-01-01-120000_Host.cpu_resource.diag,
+# CrashReporter/anagnost_<hardware UUID>.plist).
 shopt -s nocaseglob
 for dir in "$HOME/Library/Logs/DiagnosticReports" \
   "$HOME/Library/Logs/DiagnosticReports/Retired"; do
-  paths+=("$dir/$APP_NAME"[-_]*.ips "$dir/$APP_NAME"[-_]*.diag)
+  paths+=("$dir/$APP_NAME"[-_]*.ips "$dir/$APP_NAME"[-_]*.diag
+    "$dir/$APP_NAME"[-_]*.spin "$dir/$APP_NAME"[-_]*.hang)
 done
+paths+=("$HOME/Library/Application Support/CrashReporter/$APP_NAME"_*.plist)
 shopt -u nocaseglob nullglob
 if $remove_app; then
   paths+=("$app")
@@ -166,11 +184,16 @@ if ! $assume_yes; then
   [[ "$answer" == [yY] ]] || exit 0
 fi
 
-# Reset permissions while the app is still installed: tccutil resolves the
-# bundle ID through the installed app. Always pass the bundle ID: without it
-# tccutil resets every app.
+# Set when a step fails. Later steps still run, so one failure does not
+# leave the rest behind, and the exit status reports it.
+failed=false
+
+# tccutil deletes the permission rows recorded under the bundle ID; it needs
+# no running or installed app, so the order here is only for tidiness.
+# Always pass the bundle ID: without it tccutil resets every app.
 if ! tcc_output=$(tccutil reset All "$BUNDLE_ID" 2>&1); then
-  echo "Warning: could not reset privacy permissions: $tcc_output" >&2
+  failed=true
+  echo "Error: could not reset privacy permissions: $tcc_output" >&2
   echo "  Remove $APP_NAME by hand under System Settings > Privacy & Security >" >&2
   echo "  Microphone, Accessibility and Input Monitoring." >&2
 fi
@@ -179,8 +202,24 @@ fi
 # written back after the plist is deleted.
 defaults delete "$BUNDLE_ID" 2>/dev/null || true
 
+# Drop the bundle from the LaunchServices database before it goes, or a
+# stale entry (Open With menus, bundle ID lookups) lingers until the
+# database is rebuilt. Best effort: the database is rebuilt anyway.
+if $remove_app && [[ -e "$app" && -x "$LSREGISTER" ]]; then
+  "$LSREGISTER" -u "$app" >/dev/null 2>&1 || true
+fi
+
 for path in ${existing[@]+"${existing[@]}"}; do
-  rm -rf "$path"
+  if ! rm -rf "$path"; then
+    failed=true
+    echo "Error: could not delete $path. Delete it in Finder." >&2
+  fi
 done
 
+if $failed; then
+  echo "Finished, but not everything was removed. See the errors above." >&2
+  exit 1
+fi
 echo "Done."
+echo "If $APP_NAME was ever set to launch on startup, check System Settings >"
+echo "General > Login Items and remove it if it is still listed."
