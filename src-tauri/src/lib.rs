@@ -20,7 +20,6 @@ pub mod portable;
 mod secure_input;
 mod settings;
 mod shortcut;
-mod signal_handle;
 mod transcription_coordinator;
 mod tray;
 mod tray_i18n;
@@ -224,12 +223,6 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     // The frontend is responsible for calling the `initialize_shortcuts` command
     // after permissions are confirmed (on macOS) or after onboarding completes.
     // This matches the pattern used for Enigo initialization.
-
-    // Set up signal handlers for toggling transcription. On Linux, SIGUSR1 is
-    // deliberately not handled — it belongs to WebKitGTK's garbage collector
-    // (#1660) — see signal_handle.rs.
-    #[cfg(unix)]
-    signal_handle::setup_signal_handler(app_handle.clone());
 
     // The macOS activation policy for a start-hidden launch is applied before
     // the event loop runs (see `apply_startup_activation_policy`), not here:
@@ -812,30 +805,21 @@ pub fn run(cli_args: CliArgs) {
         builder = builder.plugin(tauri_nspanel::init());
     }
 
-    // Single-instance forwards CLI args to an already-running Handy and exits.
-    // That would make the headless path
+    // Single-instance hands a second launch to the already-running Handy and
+    // exits. That would make the headless path
     // (--transcribe-file/--list-devices/--list-models) a silent no-op whenever the
     // app is already open, so skip it in headless mode and run a standalone
     // instance instead.
     if !headless_mode {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            if args.iter().any(|a| a == "--toggle-transcription") {
-                signal_handle::send_transcription_input(app, "transcribe", "CLI");
-            } else if args.iter().any(|a| a == "--toggle-post-process") {
-                signal_handle::send_transcription_input(app, "transcribe_with_post_process", "CLI");
-            } else if args.iter().any(|a| a == "--cancel") {
-                crate::utils::cancel_current_operation(app);
-            } else {
-                // A second process was launched without remote-control flags
-                // (e.g. the binary run from a shell). On macOS, relaunching the
-                // bundle from Spotlight/Finder/Dock does not start a process —
-                // it arrives as RunEvent::Reopen below — but treat this the
-                // same way: raise the window and recreate a possibly vanished
-                // tray icon (#1948).
-                #[cfg(target_os = "macos")]
-                tray::recreate_tray_icon(app);
-                show_main_window(app);
-            }
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // A second process was launched (e.g. the binary run from a
+            // shell). On macOS, relaunching the bundle from Spotlight/Finder/
+            // Dock does not start a process — it arrives as RunEvent::Reopen
+            // below — but treat this the same way: raise the window and
+            // recreate a possibly vanished tray icon (#1948).
+            #[cfg(target_os = "macos")]
+            tray::recreate_tray_icon(app);
+            show_main_window(app);
         }));
     }
 
@@ -869,7 +853,7 @@ pub fn run(cli_args: CliArgs) {
             // transcribe-cpp backend + accelerator settings — then run on a worker
             // thread and exit. Deliberately skips the window, tray, overlay, audio
             // recorder (so it never opens the mic, even with always_on_microphone),
-            // signal handlers, and autostart that initialize_core_logic sets up.
+            // and autostart that initialize_core_logic sets up.
             if headless_mode {
                 let app_handle = app.handle().clone();
                 let model_manager = Arc::new(

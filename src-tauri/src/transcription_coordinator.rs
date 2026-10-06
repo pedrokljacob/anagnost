@@ -35,7 +35,7 @@ struct PendingRelease {
 }
 
 /// A press that arrived while the pipeline was still busy processing the
-/// previous transcription. Toggle-style triggers (SIGUSR2, CLI flags, some
+/// previous transcription. Toggle-style triggers (toggle shortcuts, some
 /// pedal setups) flip state on every edge, so dropping a busy press desyncs
 /// the parity: the next edge starts a recording nobody will ever stop.
 struct PendingPress {
@@ -127,7 +127,7 @@ enum Stage {
     Processing,
 }
 
-/// A keyboard/signal edge for a transcribe binding.
+/// A keyboard edge for a transcribe binding.
 struct InputEvent {
     binding_id: String,
     hotkey_string: String,
@@ -135,10 +135,6 @@ struct InputEvent {
     mode: ShortcutActivation,
     /// Hold-or-toggle: minimum press duration that counts as a hold.
     hold_threshold: Duration,
-    /// External triggers (SIGUSR2, CLI flags) rather than physical keys.
-    /// They fire on every edge by design and must never be debounced —
-    /// dropping one desyncs toggle parity and wedges recording on.
-    external: bool,
 }
 
 impl InputEvent {
@@ -285,9 +281,7 @@ impl CoordinatorState {
 
         // Debounce rapid-fire press events (key repeat / double-tap).
         // Releases in the hold modes are deferred above to absorb X11 auto-repeat.
-        // External triggers are exempt: each one is a deliberate edge from the
-        // user's own integration, and dropping it desyncs toggle parity.
-        if input.is_pressed && !input.external {
+        if input.is_pressed {
             if self
                 .last_press
                 .is_some_and(|t| now.duration_since(t) < DEBOUNCE)
@@ -601,38 +595,6 @@ impl TranscriptionCoordinator {
         mode: ShortcutActivation,
         hold_threshold: Duration,
     ) {
-        self.send(
-            binding_id,
-            hotkey_string,
-            is_pressed,
-            mode,
-            hold_threshold,
-            false,
-        );
-    }
-
-    /// Send an external trigger (SIGUSR2, CLI flag). Always a toggle press,
-    /// always exempt from debounce — see [`InputEvent::external`].
-    pub fn send_external_input(&self, binding_id: &str, source: &str) {
-        self.send(
-            binding_id,
-            source,
-            true,
-            ShortcutActivation::Toggle,
-            Duration::ZERO,
-            true,
-        );
-    }
-
-    fn send(
-        &self,
-        binding_id: &str,
-        hotkey_string: &str,
-        is_pressed: bool,
-        mode: ShortcutActivation,
-        hold_threshold: Duration,
-        external: bool,
-    ) {
         if self
             .tx
             .send(Command::Input(InputEvent {
@@ -641,7 +603,6 @@ impl TranscriptionCoordinator {
                 is_pressed,
                 mode,
                 hold_threshold,
-                external,
             }))
             .is_err()
         {
@@ -778,7 +739,7 @@ mod tests {
     // ---------------------------------------------------------------------
     // Busy-pipeline input classification.
     //
-    // Toggle-style triggers (SIGUSR2, CLI flags, pedals that signal on both
+    // Toggle-style triggers (toggle shortcuts, pedals that signal on both
     // edges) flip state on every edge. Dropping a press that arrives while
     // the previous pipeline is still processing desyncs the parity: the next
     // edge then starts a recording no one will stop, leaving the overlay
@@ -895,7 +856,6 @@ mod tests {
             is_pressed,
             mode: ShortcutActivation::PushToTalk,
             hold_threshold: Duration::ZERO,
-            external: false,
         }
     }
 
@@ -1033,7 +993,6 @@ mod tests {
                     is_pressed: true,
                     mode: ShortcutActivation::Toggle,
                     hold_threshold: Duration::ZERO,
-                    external: true,
                 },
                 at,
             )
@@ -1084,26 +1043,25 @@ mod tests {
         assert_eq!(state.stage, Stage::Idle);
     }
 
-    fn toggle_input(external: bool) -> InputEvent {
-        toggle_input_for(BINDING, external)
+    fn toggle_input() -> InputEvent {
+        toggle_input_for(BINDING)
     }
 
-    fn toggle_input_for(binding_id: &str, external: bool) -> InputEvent {
+    fn toggle_input_for(binding_id: &str) -> InputEvent {
         InputEvent {
             binding_id: binding_id.to_string(),
             hotkey_string: binding_id.to_string(),
             is_pressed: true,
             mode: ShortcutActivation::Toggle,
             hold_threshold: Duration::ZERO,
-            external,
         }
     }
 
     /// Start and stop one toggle recording so the machine sits in `Processing`.
     fn drive_into_processing(state: &mut CoordinatorState, now: Instant) {
-        let effect = state.on_input(toggle_input(true), now);
+        let effect = state.on_input(toggle_input(), now);
         assert!(matches!(effect, Some(Effect::Start { .. })));
-        let effect = state.on_input(toggle_input(true), now + Duration::from_millis(100));
+        let effect = state.on_input(toggle_input(), now + Duration::from_millis(100));
         assert!(matches!(effect, Some(Effect::Stop { .. })));
         assert_eq!(state.stage, Stage::Processing);
     }
@@ -1121,11 +1079,11 @@ mod tests {
         drive_into_processing(&mut state, now);
 
         let at = |ms| now + Duration::from_millis(ms);
-        assert!(state.on_input(toggle_input(true), at(200)).is_none());
+        assert!(state.on_input(toggle_input(), at(200)).is_none());
         assert!(state
-            .on_input(toggle_input_for(OTHER_BINDING, true), at(300))
+            .on_input(toggle_input_for(OTHER_BINDING), at(300))
             .is_none());
-        assert!(state.on_input(toggle_input(true), at(400)).is_none());
+        assert!(state.on_input(toggle_input(), at(400)).is_none());
 
         let effect = state.on_processing_finished();
         assert!(
@@ -1144,9 +1102,9 @@ mod tests {
         drive_into_processing(&mut state, now);
 
         let at = |ms| now + Duration::from_millis(ms);
-        assert!(state.on_input(toggle_input(true), at(200)).is_none());
+        assert!(state.on_input(toggle_input(), at(200)).is_none());
         assert!(state
-            .on_input(toggle_input_for(OTHER_BINDING, true), at(300))
+            .on_input(toggle_input_for(OTHER_BINDING), at(300))
             .is_none());
 
         match state.on_processing_finished() {
@@ -1155,36 +1113,17 @@ mod tests {
         }
     }
 
-    /// External triggers fire on every edge by design (e.g. SIGUSR2 sent on
-    /// both key press and release). Two edges inside the debounce window must
-    /// both be honoured, or the parity desyncs and recording wedges on.
-    #[test]
-    fn external_edges_inside_debounce_window_are_not_dropped() {
-        let mut state = CoordinatorState::new();
-        let now = Instant::now();
-
-        let effect = state.on_input(toggle_input(true), now);
-        assert!(matches!(effect, Some(Effect::Start { .. })));
-
-        let effect = state.on_input(toggle_input(true), now + Duration::from_millis(5));
-        assert!(
-            matches!(effect, Some(Effect::Stop { .. })),
-            "second external edge inside DEBOUNCE must stop the recording"
-        );
-        assert_eq!(state.stage, Stage::Processing);
-    }
-
-    /// Physical keyboard presses keep the debounce: a repeat inside the window
-    /// is still dropped and recording stays active.
+    /// A press repeat inside the debounce window is dropped and recording
+    /// stays active.
     #[test]
     fn keyboard_press_inside_debounce_window_is_still_dropped() {
         let mut state = CoordinatorState::new();
         let now = Instant::now();
 
-        let effect = state.on_input(toggle_input(false), now);
+        let effect = state.on_input(toggle_input(), now);
         assert!(matches!(effect, Some(Effect::Start { .. })));
 
-        let effect = state.on_input(toggle_input(false), now + Duration::from_millis(5));
+        let effect = state.on_input(toggle_input(), now + Duration::from_millis(5));
         assert!(
             effect.is_none(),
             "keyboard repeat inside DEBOUNCE must be debounced"
@@ -1220,7 +1159,6 @@ mod tests {
             is_pressed,
             mode,
             hold_threshold: HOLD_THRESHOLD,
-            external: false,
         }
     }
 

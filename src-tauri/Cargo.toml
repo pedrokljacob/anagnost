@@ -85,9 +85,6 @@ hf-hub = { git = "https://github.com/cjpais/hf-hub", branch = "cancellable-downl
   "tokio",
 ] }
 
-[target.'cfg(unix)'.dependencies]
-signal-hook = "0.3"
-
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-autostart = "2.5.1"
 tauri-plugin-global-shortcut = "2.3.1"
