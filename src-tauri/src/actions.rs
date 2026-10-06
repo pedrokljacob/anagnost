@@ -691,7 +691,11 @@ impl ShortcutAction for TranscribeAction {
                                 return;
                             }
 
-                            if let Err(err) = hm.save_entry(
+                            // Silence or noise transcribes to nothing; there is
+                            // nothing worth keeping in the history.
+                            if transcription.trim().is_empty() {
+                                debug!("Empty transcription; not saving to history");
+                            } else if let Err(err) = hm.save_entry(
                                 transcription,
                                 post_process,
                                 processed.post_processed_text.clone(),

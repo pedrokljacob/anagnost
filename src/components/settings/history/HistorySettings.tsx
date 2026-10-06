@@ -223,13 +223,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   const { t, i18n } = useTranslation();
   const [showCopied, setShowCopied] = useState(false);
 
-  const hasTranscription = entry.transcription_text.trim().length > 0;
-
   const handleCopyText = async () => {
-    if (!hasTranscription) {
-      return;
-    }
-
     const copied = await onCopyText();
     if (!copied) {
       toast.error(t("settings.history.copyError"));
@@ -258,7 +252,6 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
         <div className="flex items-center">
           <IconButton
             onClick={handleCopyText}
-            disabled={!hasTranscription}
             title={t("settings.history.copyToClipboard")}
           >
             {showCopied ? (
@@ -291,16 +284,8 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
         </div>
       </div>
 
-      <p
-        className={`italic text-sm pb-2 ${
-          hasTranscription
-            ? "text-text/90 select-text cursor-text whitespace-pre-wrap break-words"
-            : "text-text/40"
-        }`}
-      >
-        {hasTranscription
-          ? entry.transcription_text
-          : t("settings.history.transcriptionFailed")}
+      <p className="italic text-sm pb-2 text-text/90 select-text cursor-text whitespace-pre-wrap break-words">
+        {entry.transcription_text}
       </p>
     </div>
   );
