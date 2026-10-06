@@ -7,7 +7,5 @@
 /gen/schemas
 
 # Staged by build.rs: transcribe-cpp shared runtime libraries (Windows DLLs /
-# Linux .so), bundled next to the executable — to the install root via
-# tauri.windows.conf.json on Windows, into /usr/lib/Handy (deb/rpm) via
-# tauri.conf.json on Linux.
+# Linux .so). Only the Linux test bench uses them now (LD_LIBRARY_PATH).
 /transcribe-libs/

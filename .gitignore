@@ -43,10 +43,5 @@ recording_*
 # Agent tooling
 .claude/
 
-# Nix
-.direnv
-.envrc
-result
-
 # Python bytecode (scripts/)
 __pycache__/
