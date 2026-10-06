@@ -401,7 +401,7 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
 
     // Position starts unset — update_overlay_position() sets the correct
     // LogicalPosition before the overlay is shown.
-    let mut builder = WebviewWindowBuilder::new(
+    let builder = WebviewWindowBuilder::new(
         app_handle,
         "recording_overlay",
         tauri::WebviewUrl::App("src/overlay/index.html".into()),
@@ -420,11 +420,9 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
     .transparent(true)
     .focusable(false)
     .focused(false)
-    .visible(false);
-
-    if let Some(data_dir) = crate::portable::data_dir() {
-        builder = builder.data_directory(data_dir.join("webview"));
-    }
+    .visible(false)
+    .incognito(true)
+    .initialization_script(crate::utils::theme_init_script(app_handle));
 
     #[allow(unused_variables)]
     match builder.build() {
@@ -451,6 +449,7 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
 #[cfg(target_os = "macos")]
 pub fn create_recording_overlay(app_handle: &AppHandle) {
     if let Some((x, y)) = calculate_overlay_position(app_handle, OVERLAY_WIDTH, OVERLAY_HEIGHT) {
+        let theme_script = crate::utils::theme_init_script(app_handle);
         // PanelBuilder creates a Tauri window then converts it to NSPanel.
         // The window remains registered, so get_webview_window() still works.
         match PanelBuilder::<_, RecordingOverlayPanel>::new(app_handle, "recording_overlay")
@@ -467,7 +466,13 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
             .no_activate(true)
             .corner_radius(0.0)
             .style_mask(StyleMask::empty().borderless().nonactivating_panel())
-            .with_window(|w| w.decorations(false).transparent(true).focusable(false))
+            .with_window(move |w| {
+                w.decorations(false)
+                    .transparent(true)
+                    .focusable(false)
+                    .incognito(true)
+                    .initialization_script(theme_script)
+            })
             .collection_behavior(
                 CollectionBehavior::new()
                     .can_join_all_spaces()

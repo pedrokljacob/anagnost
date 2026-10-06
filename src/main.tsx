@@ -4,16 +4,16 @@ import { platform } from "@tauri-apps/plugin-os";
 import App from "./App";
 import {
   applyTheme,
-  getStoredTheme,
+  getInitialTheme,
   syncThemeFromSettings,
 } from "./lib/utils/theme";
 
 // Set platform before render so CSS can scope per-platform (e.g. scrollbar styles)
 document.documentElement.dataset.platform = platform();
 
-// Apply the last-known theme synchronously before render to avoid a flash of
+// Apply the injected theme synchronously before render to avoid a flash of
 // the wrong palette, then reconcile with the persisted setting once it loads.
-applyTheme(getStoredTheme());
+applyTheme(getInitialTheme());
 syncThemeFromSettings();
 
 // Initialize i18n

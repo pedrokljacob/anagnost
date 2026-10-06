@@ -197,3 +197,12 @@ mod tests {
         std::env::remove_var("ANAGNOST_TEST_FLAG_FALSY");
     }
 }
+
+/// Script that hands the saved theme to a webview before its page loads. The
+/// webviews keep no data on disk, so this replaces remembering the theme in
+/// browser storage (see `src/lib/utils/theme.ts`).
+pub fn theme_init_script(app: &AppHandle) -> String {
+    let theme = serde_json::to_string(&crate::settings::get_settings(app).theme)
+        .unwrap_or_else(|_| "\"system\"".to_string());
+    format!("window.__ANAGNOST_THEME__ = {theme};")
+}

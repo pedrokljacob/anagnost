@@ -886,20 +886,18 @@ pub fn run(cli_args: CliArgs) {
                 return Ok(());
             }
 
-            // Create main window programmatically so we can set data_directory
-            // for portable mode (redirects WebView2 cache to portable Data dir)
-            let mut win_builder =
+            // Create main window programmatically so it keeps no browsing data
+            // on disk and gets the saved theme before the page loads.
+            let win_builder =
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
                     .title("Anagnost")
                     .inner_size(680.0, 570.0)
                     .min_inner_size(680.0, 570.0)
                     .resizable(true)
                     .maximizable(true)
-                    .visible(false);
-
-            if let Some(data_dir) = portable::data_dir() {
-                win_builder = win_builder.data_directory(data_dir.join("webview"));
-            }
+                    .visible(false)
+                    .incognito(true)
+                    .initialization_script(utils::theme_init_script(app.handle()));
 
             // Only used on Windows, to disable WebView2 browser accelerators.
             #[cfg_attr(not(target_os = "windows"), allow(unused_variables))]

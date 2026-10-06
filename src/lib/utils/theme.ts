@@ -11,19 +11,25 @@ import { commands, type Theme } from "@/bindings";
  *  - `light` / `dark` set `data-theme` on the document root, whose
  *    higher-specificity CSS selectors win over the media query.
  *
- * The choice is persisted in `AppSettings` (source of truth) and mirrored to
- * localStorage so it can be applied synchronously on boot, before React mounts,
- * avoiding a flash of the wrong palette.
+ * The choice is persisted in `AppSettings` (source of truth). The webviews keep
+ * no data on disk, so the backend injects the saved theme as
+ * `window.__ANAGNOST_THEME__` before the page loads; that lets it be applied
+ * synchronously on boot, before React mounts, avoiding a flash of the wrong
+ * palette.
  */
 
-export const THEME_STORAGE_KEY = "anagnost.theme";
+declare global {
+  interface Window {
+    __ANAGNOST_THEME__?: unknown;
+  }
+}
 
 export const THEME_OPTIONS: Theme[] = ["system", "light", "dark"];
 
 const isTheme = (value: unknown): value is Theme =>
   value === "system" || value === "light" || value === "dark";
 
-/** Apply a theme to the document root and remember it for the next launch. */
+/** Apply a theme to the document root. */
 export const applyTheme = (theme: Theme): void => {
   const root = document.documentElement;
   if (theme === "system") {
@@ -31,23 +37,12 @@ export const applyTheme = (theme: Theme): void => {
   } else {
     root.dataset.theme = theme;
   }
-  try {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
-  } catch {
-    // localStorage may be unavailable (e.g. private mode); the setting still
-    // persists in AppSettings, so this only costs a one-frame flash on boot.
-  }
 };
 
-/** Read the last-applied theme for synchronous boot-time application. */
-export const getStoredTheme = (): Theme => {
-  try {
-    const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    if (isTheme(stored)) return stored;
-  } catch {
-    // ignore
-  }
-  return "system";
+/** Read the theme injected by the backend for synchronous boot-time application. */
+export const getInitialTheme = (): Theme => {
+  const injected = window.__ANAGNOST_THEME__;
+  return isTheme(injected) ? injected : "system";
 };
 
 /** Apply the persisted theme from AppSettings (the source of truth). */
