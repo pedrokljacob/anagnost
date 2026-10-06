@@ -4,7 +4,6 @@ import { getVersion } from "@tauri-apps/api/app";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { AppDataDirectory } from "../AppDataDirectory";
-import { ThemeSelector } from "../ThemeSelector";
 import { LogDirectory } from "../debug";
 
 export const AboutSettings: React.FC = () => {
@@ -28,7 +27,6 @@ export const AboutSettings: React.FC = () => {
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
       <SettingsGroup title={t("settings.about.title")}>
-        <ThemeSelector descriptionMode="tooltip" grouped={true} />
         <SettingContainer
           title={t("settings.about.version.title")}
           description={t("settings.about.version.description")}

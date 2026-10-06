@@ -237,16 +237,6 @@ impl ModelUnloadTimeout {
     }
 }
 
-/// UI appearance mode. `System` follows the OS `prefers-color-scheme`; `Light`
-/// and `Dark` force one of the two palettes Handy already ships.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
-#[serde(rename_all = "snake_case")]
-pub enum Theme {
-    System,
-    Light,
-    Dark,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum TypingTool {
@@ -408,8 +398,6 @@ pub struct AppSettings {
     pub append_trailing_space: bool,
     #[serde(default = "default_app_language")]
     pub app_language: String,
-    #[serde(default = "default_theme")]
-    pub theme: Theme,
     #[serde(default)]
     pub experimental_enabled: bool,
     #[serde(default)]
@@ -540,10 +528,6 @@ fn default_auto_submit() -> bool {
 
 fn default_audio_feedback_volume() -> f32 {
     1.0
-}
-
-fn default_theme() -> Theme {
-    Theme::System
 }
 
 fn default_post_process_enabled() -> bool {
@@ -861,7 +845,6 @@ pub fn get_default_settings() -> AppSettings {
         mute_while_recording: false,
         append_trailing_space: false,
         app_language: default_app_language(),
-        theme: default_theme(),
         experimental_enabled: false,
         lazy_stream_close: false,
         keyboard_implementation: KeyboardImplementation::default(),
@@ -1307,6 +1290,22 @@ mod tests {
         // matching legacy mode rather than the new hold-or-toggle default.
         assert_eq!(settings.shortcut_activation, ShortcutActivation::Toggle);
         assert_eq!(settings.transcribe_gpu_device, None);
+    }
+
+    /// Settings removed from the app must not break loading a store that
+    /// still carries them.
+    #[test]
+    fn removed_settings_are_ignored_when_loading() {
+        let stored = serde_json::json!({
+            "selected_model": "kept",
+            "theme": "dark",
+            "history_limit": 50,
+            "recording_retention_period": "weeks2"
+        });
+
+        let settings: AppSettings = serde_json::from_value(stored)
+            .expect("removed settings keys must not fail the strict parse");
+        assert_eq!(settings.selected_model, "kept");
     }
 
     #[test]

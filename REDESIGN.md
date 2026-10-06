@@ -21,7 +21,8 @@ and the progress.
 ## Workflow for one unit
 
 1. Mark the unit `[~]` here with the branch name, in the unit's first commit.
-2. Capture **before** screenshots of every state, light and dark.
+2. Capture **before** screenshots of every state, light and dark (switch the
+   browser's color scheme; see "UI preview" in `BUILD.md`).
 3. Post them with a keep/change list for each element; Pedro answers.
 4. Build it (variants first for Phase 1). Post **after** screenshots of the
    same states, next to the before ones.

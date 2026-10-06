@@ -149,7 +149,10 @@ and `/src/overlay/index.html` for the recording overlay; the main window is
 680×570 and the overlay 256×50 (400×120 when streaming). URL parameters pick
 the scenario, for example `/?onboarding=1` or
 `/src/overlay/index.html?state=streaming&position=top`. The full list is at
-the top of `src/dev/mock/index.ts`. Headless WebKit (`playwright-cli open
+the top of `src/dev/mock/index.ts`. Light and dark follow the browser's color
+scheme, as the app follows the system: switch it in the browser, or emulate
+it (Playwright's `colorScheme`, the T3 preview's appearance setting) for
+screenshots. Headless WebKit (`playwright-cli open
 --browser=webkit`) is the closest match to the Mac's WKWebView.
 
 ## Linux test bench

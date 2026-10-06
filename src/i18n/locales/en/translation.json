@@ -587,15 +587,6 @@
     "pasteFailed": "Text could not be pasted into the active application.",
     "transcriptionFailedTitle": "Transcription Failed"
   },
-  "theme": {
-    "title": "Application Theme",
-    "description": "Choose whether Anagnost follows your system theme or stays light or dark",
-    "options": {
-      "system": "System",
-      "light": "Light",
-      "dark": "Dark"
-    }
-  },
   "overlay": {
     "transcribing": "Transcribing...",
     "processing": "Processing..."

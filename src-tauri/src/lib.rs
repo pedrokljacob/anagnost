@@ -628,7 +628,6 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_hold_threshold_ms_setting,
             shortcut::change_audio_feedback_setting,
             shortcut::change_audio_feedback_volume_setting,
-            shortcut::change_theme_setting,
             shortcut::change_start_hidden_setting,
             shortcut::change_autostart_setting,
             shortcut::change_selected_language_setting,
@@ -876,7 +875,7 @@ pub fn run(cli_args: CliArgs) {
             }
 
             // Create main window programmatically so it keeps no browsing data
-            // on disk and gets the saved theme before the page loads.
+            // on disk.
             let win_builder =
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
                     .title("Anagnost")
@@ -885,8 +884,7 @@ pub fn run(cli_args: CliArgs) {
                     .resizable(true)
                     .maximizable(true)
                     .visible(false)
-                    .incognito(true)
-                    .initialization_script(utils::theme_init_script(app.handle()));
+                    .incognito(true);
 
             // Only used on Windows, to disable WebView2 browser accelerators.
             #[cfg_attr(not(target_os = "windows"), allow(unused_variables))]
@@ -917,13 +915,6 @@ pub fn run(cli_args: CliArgs) {
             }
 
             let mut settings = get_settings(app.handle());
-
-            // Apply the persisted appearance theme to the native title bar before
-            // the window is shown, so it matches the in-app palette without a flash
-            // of the wrong theme. See `apply_window_theme` for what this does per
-            // platform.
-            #[cfg(any(target_os = "windows", target_os = "macos"))]
-            shortcut::apply_window_theme(app.handle(), settings.theme);
 
             // CLI --debug flag overrides debug_mode and log level (runtime-only, not persisted)
             if cli_args.debug {

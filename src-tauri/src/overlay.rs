@@ -421,8 +421,7 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
     .focusable(false)
     .focused(false)
     .visible(false)
-    .incognito(true)
-    .initialization_script(crate::utils::theme_init_script(app_handle));
+    .incognito(true);
 
     #[allow(unused_variables)]
     match builder.build() {
@@ -449,7 +448,6 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
 #[cfg(target_os = "macos")]
 pub fn create_recording_overlay(app_handle: &AppHandle) {
     if let Some((x, y)) = calculate_overlay_position(app_handle, OVERLAY_WIDTH, OVERLAY_HEIGHT) {
-        let theme_script = crate::utils::theme_init_script(app_handle);
         // PanelBuilder creates a Tauri window then converts it to NSPanel.
         // The window remains registered, so get_webview_window() still works.
         match PanelBuilder::<_, RecordingOverlayPanel>::new(app_handle, "recording_overlay")
@@ -466,12 +464,11 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
             .no_activate(true)
             .corner_radius(0.0)
             .style_mask(StyleMask::empty().borderless().nonactivating_panel())
-            .with_window(move |w| {
+            .with_window(|w| {
                 w.decorations(false)
                     .transparent(true)
                     .focusable(false)
                     .incognito(true)
-                    .initialization_script(theme_script)
             })
             .collection_behavior(
                 CollectionBehavior::new()

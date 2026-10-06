@@ -9,7 +9,8 @@
 //                 history=empty  debug=0  postprocess=0
 //   overlay page: state=recording|arming|streaming|streaming-empty|
 //                 transcribing|processing|polishing  position=top|bottom
-//   both:         theme=light|dark (default follows the browser)
+//
+// Light and dark follow the browser's color scheme (prefers-color-scheme).
 //
 // The model-picker onboarding step is reached through Debug > Onboarding
 // preview: reaching it through the real flow needs granted permissions on a
@@ -20,7 +21,7 @@
 
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { emit } from "@tauri-apps/api/event";
-import type { AppSettings, ModelInfo, Theme } from "@/bindings";
+import type { AppSettings, ModelInfo } from "@/bindings";
 import {
   catalogModels,
   defaultSettings,
@@ -41,8 +42,6 @@ const settings: AppSettings = {
   debug_mode: param("debug") !== "0",
   post_process_enabled: param("postprocess") !== "0",
 };
-const theme = param("theme");
-if (theme === "light" || theme === "dark") settings.theme = theme as Theme;
 const position = param("position");
 if (position === "top" || position === "bottom") {
   settings.overlay_position = position;

@@ -9,8 +9,7 @@
   --s-accent: var(--color-logo-primary);
   /* Light/dark pairs for the tokens that can't flip through a shared palette
      variable on their own. Same shape as theme.css: each value is written once
-     here, and the active token below is re-pointed by the media query or by the
-     `data-theme` overrides. */
+     here, and the active token below is re-pointed by the media query. */
   --light-s-accent-soft: color-mix(
     in srgb,
     var(--color-background-ui) 16%,
@@ -37,8 +36,7 @@
   --light-s-hair: color-mix(in srgb, var(--color-mid-gray) 12%, transparent);
   --dark-s-hair: color-mix(in srgb, var(--color-text) 8%, transparent);
 
-  /* Active neutrals — default light, flipped by the media query below or forced
-     by `data-theme`. */
+  /* Active neutrals — default light, flipped by the media query below. */
   --s-accent-soft: var(--light-s-accent-soft);
   --s-muted: var(--light-s-muted);
   --s-faint: var(--light-s-faint);
@@ -67,31 +65,6 @@
     --s-border: var(--dark-s-border);
     --s-hair: var(--dark-s-hair);
   }
-}
-
-/*
- * Explicit theme override, matching the `data-theme` blocks in theme.css.
- * `--s-surface` and `--s-accent` honour the setting for free because they derive
- * from shared palette tokens, but the neutrals above are chosen here, so without
- * this block a forced theme on a differently-themed OS mixes the two — e.g. dark
- * surface with light-theme secondary text at ~2.8:1 contrast. macOS masks that
- * (setting the app appearance flips the webview's `prefers-color-scheme` to
- * match), so this is what Windows and Linux need.
- */
-:root[data-theme="light"] {
-  --s-accent-soft: var(--light-s-accent-soft);
-  --s-muted: var(--light-s-muted);
-  --s-faint: var(--light-s-faint);
-  --s-border: var(--light-s-border);
-  --s-hair: var(--light-s-hair);
-}
-
-:root[data-theme="dark"] {
-  --s-accent-soft: var(--dark-s-accent-soft);
-  --s-muted: var(--dark-s-muted);
-  --s-faint: var(--dark-s-faint);
-  --s-border: var(--dark-s-border);
-  --s-hair: var(--dark-s-hair);
 }
 
 /* ============================================================

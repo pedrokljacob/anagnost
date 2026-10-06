@@ -104,7 +104,6 @@ export const defaultSettings = (): AppSettings => ({
   mute_while_recording: false,
   append_trailing_space: false,
   app_language: "en",
-  theme: "system",
   experimental_enabled: false,
   lazy_stream_close: false,
   keyboard_implementation: "handy_keys",
