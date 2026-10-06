@@ -400,14 +400,6 @@ pub struct AppSettings {
     pub start_hidden: bool,
     #[serde(default = "default_autostart_enabled")]
     pub autostart_enabled: bool,
-    #[serde(default = "default_show_whats_new_on_update")]
-    pub show_whats_new_on_update: bool,
-    /// The app version whose What's New the user has already seen. Fresh installs
-    /// default to the current version (nothing is "new" to them). Existing users
-    /// upgrading from before this key existed are blanked by the migration so they
-    /// see the current release's notes — see `apply_settings_migrations`.
-    #[serde(default = "default_whats_new_last_seen_version")]
-    pub whats_new_last_seen_version: String,
     #[serde(default = "default_model")]
     pub selected_model: String,
     #[serde(default)]
@@ -557,14 +549,6 @@ fn default_start_hidden() -> bool {
 
 fn default_autostart_enabled() -> bool {
     false
-}
-
-fn default_show_whats_new_on_update() -> bool {
-    true
-}
-
-fn default_whats_new_last_seen_version() -> String {
-    env!("CARGO_PKG_VERSION").to_string()
 }
 
 fn default_selected_language() -> String {
@@ -932,8 +916,6 @@ pub fn get_default_settings() -> AppSettings {
         sound_theme: default_sound_theme(),
         start_hidden: default_start_hidden(),
         autostart_enabled: default_autostart_enabled(),
-        show_whats_new_on_update: default_show_whats_new_on_update(),
-        whats_new_last_seen_version: default_whats_new_last_seen_version(),
         selected_model: "".to_string(),
         onboarding_completed: false,
         always_on_microphone: false,
@@ -1123,16 +1105,6 @@ fn apply_settings_migrations(
     // files on disk should still see onboarding.
     if settings_value.get("onboarding_completed").is_none() {
         settings.onboarding_completed = !settings.selected_model.is_empty();
-        updated = true;
-    }
-
-    // One-time What's New migration: migrations only run on an existing store
-    // (fresh installs stamp the current version via get_default_settings). A
-    // missing key here means a user upgrading from before it existed — blank it
-    // so they see the current release's What's New, mirroring the onboarding
-    // migration's explicit first-run-vs-upgrade decision.
-    if settings_value.get("whats_new_last_seen_version").is_none() {
-        settings.whats_new_last_seen_version = String::new();
         updated = true;
     }
 
@@ -1698,7 +1670,6 @@ mod tests {
         let raw = serde_json::json!({
             "settings_schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
             "onboarding_completed": false,
-            "whats_new_last_seen_version": default_whats_new_last_seen_version(),
             "overlay_style": "live",
             "transcribe_accelerator": "gpu",
             "transcribe_gpu_device": null
@@ -1722,7 +1693,6 @@ mod tests {
         let raw = serde_json::json!({
             "settings_schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
             "onboarding_completed": false,
-            "whats_new_last_seen_version": default_whats_new_last_seen_version(),
             "overlay_style": "live",
             "chinese_script": "as_transcribed",
             "transcribe_accelerator": "gpu",

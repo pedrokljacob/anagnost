@@ -499,13 +499,6 @@
         "lineCount": "{{count}} lines",
         "empty": "Waiting for logs… Entries appear here as the app emits them."
       },
-      "whatsNewPreview": {
-        "title": "Preview What's New",
-        "description": "Open the latest bundled release note without marking it as seen",
-        "button": "Preview",
-        "noNotes": "No bundled release notes found",
-        "error": "Failed to preview release notes"
-      },
       "onboardingPreview": {
         "title": "Preview Onboarding",
         "description": "Preview onboarding screens without changing permissions, models, or completion state",
@@ -613,10 +606,6 @@
         "title": "Version",
         "description": "Current version of Handy"
       },
-      "whatsNewUpdates": {
-        "label": "Show What's New",
-        "description": "Show release notes after Handy updates"
-      },
       "appDataDirectory": {
         "title": "App Data Directory",
         "description": "Location where Handy stores its data"
@@ -640,9 +629,6 @@
         }
       }
     }
-  },
-  "whatsNew": {
-    "title": "New in Handy v{{version}}"
   },
   "common": {
     "loading": "Loading...",
