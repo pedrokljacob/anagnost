@@ -30,6 +30,22 @@ use crate::tray;
 
 // Note: Commands are accessed via shortcut::handy_keys:: in lib.rs
 
+/// Set when handy-keys failed to start in this session. Shortcuts then run on
+/// the Tauri backend until the next launch, which tries handy-keys again. Kept
+/// out of the settings on purpose: a persisted fallback would stick forever,
+/// and the UI records shortcuts through handy-keys only.
+static HANDY_KEYS_UNAVAILABLE: AtomicBool = AtomicBool::new(false);
+
+/// The keyboard backend in use this session: the configured one, unless
+/// handy-keys failed to start.
+pub fn active_implementation(settings: &settings::AppSettings) -> KeyboardImplementation {
+    if HANDY_KEYS_UNAVAILABLE.load(Ordering::SeqCst) {
+        KeyboardImplementation::Tauri
+    } else {
+        settings.keyboard_implementation
+    }
+}
+
 /// Initialize shortcuts using the configured implementation
 pub fn init_shortcuts(app: &AppHandle) {
     let user_settings = settings::load_or_create_app_settings(app);
@@ -42,14 +58,8 @@ pub fn init_shortcuts(app: &AppHandle) {
         KeyboardImplementation::HandyKeys => {
             if let Err(e) = handy_keys::init_shortcuts(app) {
                 error!("Failed to initialize handy-keys shortcuts: {}", e);
-                // Fall back to Tauri implementation and persist this fallback
-                warn!("Falling back to Tauri global shortcut implementation and saving fallback to settings");
-
-                // Update settings to persist the fallback so we don't retry HandyKeys on next launch
-                let mut settings = settings::get_settings(app);
-                settings.keyboard_implementation = KeyboardImplementation::Tauri;
-                settings::write_settings(app, settings);
-
+                warn!("Falling back to Tauri global shortcuts for this session");
+                HANDY_KEYS_UNAVAILABLE.store(true, Ordering::SeqCst);
                 tauri_impl::init_shortcuts(app);
             }
         }
@@ -132,7 +142,7 @@ fn reconcile_cancel_shortcut(app: &AppHandle) {
 /// Register a shortcut using the appropriate implementation
 pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<(), String> {
     let settings = get_settings(app);
-    match settings.keyboard_implementation {
+    match active_implementation(&settings) {
         KeyboardImplementation::Tauri => tauri_impl::register_shortcut(app, binding),
         KeyboardImplementation::HandyKeys => handy_keys::register_shortcut(app, binding),
     }
@@ -141,7 +151,7 @@ pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<()
 /// Unregister a shortcut using the appropriate implementation
 pub fn unregister_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<(), String> {
     let settings = get_settings(app);
-    match settings.keyboard_implementation {
+    match active_implementation(&settings) {
         KeyboardImplementation::Tauri => tauri_impl::unregister_shortcut(app, binding),
         KeyboardImplementation::HandyKeys => handy_keys::unregister_shortcut(app, binding),
     }
@@ -222,7 +232,7 @@ pub fn change_binding(
     }
 
     // Validate the new shortcut for the current keyboard implementation
-    if let Err(e) = validate_shortcut_for_implementation(&binding, settings.keyboard_implementation)
+    if let Err(e) = validate_shortcut_for_implementation(&binding, active_implementation(&settings))
     {
         warn!("change_binding validation error: {}", e);
         restore_registration(&app, &binding_to_modify);

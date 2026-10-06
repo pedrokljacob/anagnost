@@ -1067,6 +1067,10 @@ fn apply_settings_migrations(
         updated = true;
     }
 
+    if normalize_keyboard_implementation(settings, cfg!(target_os = "macos")) {
+        updated = true;
+    }
+
     let stored_schema_version = settings_value
         .get("settings_schema_version")
         .and_then(|v| v.as_u64())
@@ -1118,6 +1122,17 @@ fn apply_settings_migrations(
     }
 
     updated
+}
+
+/// On macOS shortcuts always run on handy-keys: the UI records through it and
+/// offers no way to switch. Older builds persisted `Tauri` after a failed
+/// handy-keys start, which then stuck forever, so fold it back here.
+fn normalize_keyboard_implementation(settings: &mut AppSettings, handy_keys_only: bool) -> bool {
+    if handy_keys_only && settings.keyboard_implementation == KeyboardImplementation::Tauri {
+        settings.keyboard_implementation = KeyboardImplementation::HandyKeys;
+        return true;
+    }
+    false
 }
 
 pub fn write_settings(app: &AppHandle, settings: AppSettings) {
@@ -1623,6 +1638,31 @@ mod tests {
         assert_eq!(
             settings.transcribe_gpu_device.as_deref(),
             Some("[\"vulkan\",\"id\",\"0000:01:00.0\"]")
+        );
+    }
+
+    #[test]
+    fn persisted_tauri_keyboard_falls_back_to_handy_keys_on_macos() {
+        let mut settings = get_default_settings();
+        settings.keyboard_implementation = KeyboardImplementation::Tauri;
+
+        assert!(normalize_keyboard_implementation(&mut settings, true));
+        assert_eq!(
+            settings.keyboard_implementation,
+            KeyboardImplementation::HandyKeys
+        );
+        assert!(!normalize_keyboard_implementation(&mut settings, true));
+    }
+
+    #[test]
+    fn keyboard_implementation_is_kept_off_macos() {
+        let mut settings = get_default_settings();
+        settings.keyboard_implementation = KeyboardImplementation::Tauri;
+
+        assert!(!normalize_keyboard_implementation(&mut settings, false));
+        assert_eq!(
+            settings.keyboard_implementation,
+            KeyboardImplementation::Tauri
         );
     }
 
