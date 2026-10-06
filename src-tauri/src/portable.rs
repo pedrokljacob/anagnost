@@ -79,24 +79,6 @@ pub fn log_dir(identifier: &str) -> Option<PathBuf> {
     }
 }
 
-/// Remove the OS log folder used before logs moved into the app data folder.
-/// On Linux both resolve to the same folder, so nothing is removed there.
-pub fn remove_legacy_log_dir(app: &tauri::AppHandle) {
-    if is_portable() {
-        return;
-    }
-    let (Ok(legacy), Ok(current)) = (app.path().app_log_dir(), app_log_dir(app)) else {
-        return;
-    };
-    if legacy == current || !legacy.exists() {
-        return;
-    }
-    match std::fs::remove_dir_all(&legacy) {
-        Ok(()) => log::info!("Removed legacy log folder {:?}", legacy),
-        Err(e) => log::warn!("Failed to remove legacy log folder {:?}: {}", legacy, e),
-    }
-}
-
 /// Get the path to use with `tauri-plugin-store`.
 /// Returns an absolute path in portable mode (so the store plugin writes to
 /// the portable Data dir) or the original relative path otherwise.

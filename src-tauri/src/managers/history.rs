@@ -6,7 +6,7 @@ use rusqlite_migration::{Migrations, M};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tauri::AppHandle;
 use tauri_specta::Event;
 
@@ -21,7 +21,6 @@ static MIGRATIONS: &[M] = &[
     M::up(
         "CREATE TABLE IF NOT EXISTS transcription_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            file_name TEXT NOT NULL,
             timestamp INTEGER NOT NULL,
             saved BOOLEAN NOT NULL DEFAULT 0,
             title TEXT NOT NULL,
@@ -31,8 +30,6 @@ static MIGRATIONS: &[M] = &[
     M::up("ALTER TABLE transcription_history ADD COLUMN post_processed_text TEXT;"),
     M::up("ALTER TABLE transcription_history ADD COLUMN post_process_prompt TEXT;"),
     M::up("ALTER TABLE transcription_history ADD COLUMN post_process_requested BOOLEAN NOT NULL DEFAULT 0;"),
-    // History keeps text only; recordings are no longer saved.
-    M::up("ALTER TABLE transcription_history DROP COLUMN file_name;"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]
@@ -74,8 +71,6 @@ impl HistoryManager {
         let app_data_dir = crate::portable::app_data_dir(app_handle)?;
         fs::create_dir_all(&app_data_dir)?;
         let db_path = app_data_dir.join("history.db");
-
-        remove_legacy_recordings(&app_data_dir);
 
         let manager = Self {
             app_handle: app_handle.clone(),
@@ -525,21 +520,6 @@ impl HistoryManager {
     }
 }
 
-/// Remove the `recordings/` folder left by versions that saved audio.
-fn remove_legacy_recordings(app_data_dir: &Path) {
-    let recordings_dir = app_data_dir.join("recordings");
-    if !recordings_dir.exists() {
-        return;
-    }
-    match fs::remove_dir_all(&recordings_dir) {
-        Ok(()) => info!("Removed legacy recordings folder {:?}", recordings_dir),
-        Err(e) => error!(
-            "Failed to remove legacy recordings folder {:?}: {}",
-            recordings_dir, e
-        ),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -624,46 +604,16 @@ mod tests {
     }
 
     #[test]
-    fn migrations_drop_file_name_and_keep_entries() {
+    fn migrations_create_text_only_table() {
         let mut conn = Connection::open_in_memory().expect("open in-memory db");
-        let migrations = Migrations::new(MIGRATIONS.to_vec());
-        migrations
-            .to_version(&mut conn, MIGRATIONS.len() - 1)
-            .expect("migrate to the last audio version");
-        conn.execute(
-            "INSERT INTO transcription_history (file_name, timestamp, title, transcription_text)
-             VALUES ('handy-1.wav', 1, 'Recording 1', 'kept')",
-            [],
-        )
-        .expect("insert legacy entry");
+        Migrations::new(MIGRATIONS.to_vec())
+            .to_latest(&mut conn)
+            .expect("apply migrations");
+        insert_entry(&conn, 100, "kept", None);
 
-        migrations.to_latest(&mut conn).expect("migrate to latest");
-
-        let has_file_name: bool = conn
-            .query_row(
-                "SELECT COUNT(*) > 0 FROM pragma_table_info('transcription_history')
-                 WHERE name = 'file_name'",
-                [],
-                |row| row.get(0),
-            )
-            .expect("read table info");
-        assert!(!has_file_name);
         let entry = HistoryManager::get_latest_entry_with_conn(&conn)
             .expect("fetch latest entry")
-            .expect("entry kept");
+            .expect("entry exists");
         assert_eq!(entry.transcription_text, "kept");
-    }
-
-    #[test]
-    fn remove_legacy_recordings_deletes_folder() {
-        let dir = tempfile::tempdir().expect("create temp dir");
-        let recordings = dir.path().join("recordings");
-        fs::create_dir_all(&recordings).expect("create recordings dir");
-        fs::write(recordings.join("handy-1.wav"), b"RIFF").expect("write wav");
-
-        remove_legacy_recordings(dir.path());
-
-        assert!(!recordings.exists());
-        assert!(dir.path().exists());
     }
 }

@@ -841,8 +841,6 @@ pub fn run(cli_args: CliArgs) {
 
             specta_builder.mount_events(app);
 
-            portable::remove_legacy_log_dir(app.handle());
-
             // Headless one-shot path (`--transcribe-file` / `--list-devices` /
             // `--list-models`): initialize only what transcription needs — the
             // store/paths plugins, the model + transcription managers, and the
