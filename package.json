@@ -7,7 +7,6 @@
     "dev": "vite",
     "preview:ui": "vite --mode mock",
     "build": "tsc && vite build",
-    "preview": "vite preview",
     "tauri": "tauri",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
