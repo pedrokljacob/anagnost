@@ -78,18 +78,22 @@ jobs:
 
       - name: Verify signature
         run: |
-          APP=src-tauri/target/release/bundle/macos/Handy.app
+          APP=$(echo src-tauri/target/release/bundle/macos/*.app)
           codesign --verify --deep --strict "$APP"
           codesign -dr - "$APP"
 
+      # latest.txt tells the install script the commit and the app bundle
+      # name without needing the GitHub API.
       - name: Publish rolling release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp src-tauri/target/release/bundle/dmg/*.dmg "$RUNNER_TEMP/$ASSET"
+          APP=$(echo src-tauri/target/release/bundle/macos/*.app)
+          printf '%s\n%s\n' "$GITHUB_SHA" "$(basename "$APP")" > "$RUNNER_TEMP/latest.txt"
           gh release delete latest --cleanup-tag --yes || true
-          gh release create latest "$RUNNER_TEMP/$ASSET" \
+          gh release create latest "$RUNNER_TEMP/$ASSET" "$RUNNER_TEMP/latest.txt" \
             --prerelease \
             --target "$GITHUB_SHA" \
             --title "Latest build (${GITHUB_SHA::7})" \
-            --notes "Built from $GITHUB_SHA. Install with scripts/install-mac.sh."
+            --notes "Built from $GITHUB_SHA. Install or update with scripts/install-mac.sh (see BUILD.md)."

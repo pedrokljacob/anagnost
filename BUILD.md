@@ -10,16 +10,17 @@ Every push to `main` runs `.github/workflows/mac-build.yml` on a GitHub
 Apple Silicon runner and publishes the app as the rolling `latest`
 pre-release. No local build is needed.
 
-Install or update it on the Mac (needs `brew install gh && gh auth login`):
+Install or update it on the Mac with the tools macOS ships with:
 
 ```bash
-gh api repos/pedrokljacob/anagnost/contents/scripts/install-mac.sh \
-  -H "Accept: application/vnd.github.raw" | bash
+curl -fsSL https://raw.githubusercontent.com/pedrokljacob/anagnost/main/scripts/install-mac.sh | bash
 ```
 
 From a checkout, `scripts/install-mac.sh` does the same. It skips the
 download when the installed build is already current; pass `--force` to
-reinstall (`| bash -s -- --force` for the one-liner).
+reinstall (`| bash -s -- --force` for the one-liner). It leaves nothing on
+the Mac but the app; `curl` downloads are not quarantined, so Gatekeeper
+does not block the unnotarized app.
 
 ### Signing certificate
 
