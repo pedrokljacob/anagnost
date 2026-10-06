@@ -2,7 +2,7 @@
 name = "anagnost"
 version = "0.9.8"
 description = "Anagnost"
-authors = ["cjpais"]
+authors = ["Pedro"]
 edition = "2021"
 license = "MIT"
 default-run = "anagnost"
