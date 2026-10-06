@@ -209,7 +209,6 @@
         "streaming": "Filter models that support live streaming transcription"
       },
       "rescan": {
-        "label": "Rescan",
         "tooltip": "Rescan for models copied into the app's models folder or Hugging Face cache"
       },
       "noModelsMatch": "No models match this filter."
@@ -514,11 +513,6 @@
         "label": "Append Trailing Space",
         "description": "Add a space after pasted transcription"
       },
-      "paths": {
-        "appData": "App Data:",
-        "models": "Models:",
-        "settings": "Settings:"
-      },
       "pasteDelay": {
         "title": "Paste Delay (Before)",
         "description": "Delay (in milliseconds) after copying text, before sending the paste keystroke. Increase if nothing gets pasted."
@@ -583,7 +577,6 @@
   "common": {
     "loading": "Loading...",
     "delete": "Delete",
-    "close": "Close",
     "open": "Open",
     "copy": "Copy",
     "clear": "Clear",
