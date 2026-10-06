@@ -68,6 +68,25 @@ not covered by the old grant. The reset procedure does not require this check.
 See [Handy issue #1618](https://github.com/cjpais/Handy/issues/1618) for the related
 onboarding and stale-permission report.
 
+## UI preview
+
+Runs the interface in a plain browser with a fake backend (`src/dev/mock/`),
+on any OS and without Rust. Native surfaces (menu bar, window chrome,
+permission dialogs, sounds, overlay placement on screen) still need the Mac.
+
+```bash
+bun install
+bun run preview:ui
+```
+
+It serves on the first free port from 1430. Open `/` for the settings window
+and `/src/overlay/index.html` for the recording overlay; the main window is
+680×570 and the overlay 256×50 (400×120 when streaming). URL parameters pick
+the scenario, for example `/?onboarding=1` or
+`/src/overlay/index.html?state=streaming&position=top`. The full list is at
+the top of `src/dev/mock/index.ts`. Headless WebKit (`playwright-cli open
+--browser=webkit`) is the closest match to the Mac's WKWebView.
+
 ## Linux test bench
 
 The Rust crate must keep compiling and passing its tests on Linux, and the
