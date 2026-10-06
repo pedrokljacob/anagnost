@@ -49,6 +49,13 @@ Turn off "Launch at login" in the app and quit it, then run:
 scripts/uninstall.sh --app
 ```
 
+Without a checkout (not piped into `bash`, so the confirmation prompt can
+read the terminal):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/pedrokljacob/anagnost/main/scripts/uninstall.sh) --app
+```
+
 It lists what it found and asks before deleting: the app data folder
 (`~/Library/Application Support/<identifier>`), the caches, preferences,
 saved state and crash reports macOS keeps for the app, and, with `--app`,
