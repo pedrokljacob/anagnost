@@ -23,8 +23,22 @@ download when the installed build is already current; pass `--force` to
 reinstall (`| bash -s -- --force` for the one-liner). It copies the new app
 next to the old one before swapping them, so a failed install leaves the
 installed app as it was, and quits and relaunches a running copy. It leaves
-nothing on the Mac but the app; `curl` downloads are not quarantined, so
-Gatekeeper does not block the unnotarized app.
+nothing on the Mac but the app, apart from what an interrupted run (power
+loss, a killed terminal) can leave: a temporary folder under `$TMPDIR` and a
+staging copy named `/Applications/.Anagnost-new.<pid>`, both harmless and
+safe to delete. `curl` downloads are not quarantined, so Gatekeeper does not
+block the unnotarized app.
+
+### Trust model
+
+The installer verifies that the downloaded app is intact and signed, and
+refuses an ad-hoc signature, but the certificate is self-signed and the
+build is not notarized, so nothing on the Mac vouches for who built it. What
+you trust is GitHub over HTTPS: the script, the release and the CI
+definition all come from this repository, so whoever controls it controls
+what gets installed. Developer ID signing and notarization would let macOS
+check the publisher; they need a paid Apple Developer account and are not
+set up.
 
 ### Signing certificate
 
@@ -54,6 +68,9 @@ curl -fsSL https://raw.githubusercontent.com/pedrokljacob/anagnost/main/scripts/
 From a checkout: `scripts/uninstall.sh --app`. Without `--app` the app
 itself stays in `/Applications`.
 
+Dragging the app to the Trash does not run this cleanup: it leaves the app
+data, the privacy permissions and any login item behind.
+
 The script first checks what it cannot undo by itself. If "Launch on
 Startup" is on (read from the app's settings) or the app is running, it
 deletes nothing and says what to do: turn the setting off in Anagnost under
@@ -63,11 +80,68 @@ Run it again afterwards.
 It then lists what it found and asks before deleting (`--yes` skips the
 question): the app data folder (`~/Library/Application Support/<identifier>`,
 which holds settings, history, models and logs), the caches, preferences,
-saved state and crash reports macOS keeps for the app, and, with `--app`,
-the app itself. It also resets all of the app's privacy permissions
-(Microphone, Accessibility, Input Monitoring) before deleting the app, and
-says so if that fails, in which case remove the app under System Settings >
-Privacy & Security by hand.
+saved state, crash, hang and spin reports macOS keeps for the app, and,
+with `--app`, the app itself, which it also unregisters from LaunchServices.
+It resets all of the app's privacy permissions (Microphone, Accessibility,
+Input Monitoring) as well. If a step fails it carries on, then exits with
+a non-zero status and says what to finish by hand (permissions under System
+Settings > Privacy & Security, a file in Finder). At the end it reminds you
+to check System Settings > General > Login Items: the app only saves "Launch
+on Startup" once macOS confirms the login item change, but the script cannot
+read the real login-item state without root, so look there once if the
+setting was ever on.
+
+### What stays
+
+The script removes the files the app owns and, as far as a script can, the
+state macOS keeps for it. It is not guaranteed erasure. It does not touch:
+
+- A Dock tile or Apple menu > Recent Items entry, which keep a dangling
+  reference until you remove them; a copy of the app in the Trash if you
+  dragged it there before running the script.
+- Unified-log entries, which macOS keeps until it rotates them.
+- Time Machine backups and local snapshots, which may hold earlier copies
+  of the app data folder, including the settings file.
+- Downloaded disk images or app copies outside `/Applications`, other user
+  accounts, and your shell history.
+- Anything that left the Mac: text the app pasted into other apps,
+  clipboard-manager history, and, if you enabled post-processing with a
+  cloud provider, whatever that provider keeps of the text it was sent.
+
+### What the app stores
+
+Everything is in the app data folder, which the uninstall removes and
+which the app keeps private to your account (mode 0700). `settings_store.json`
+holds the settings, including any post-processing API keys as plain text
+(not in the Keychain, so nothing survives the folder). `history.db` holds
+the last transcriptions. `logs/` holds the app logs; provider errors are
+logged by status and short message only, never the response body. Models
+and the Hugging Face cache live alongside. Post-processing is off by
+default and only sends text off the Mac when you configure a remote
+provider.
+
+### Checking an uninstall
+
+No automated Mac test covers the install and uninstall cycle; CI only
+builds the app. To check a build yourself, before installing, record a
+reference:
+
+```bash
+touch /tmp/anagnost-mark
+```
+
+Then install, grant the permissions, download a model, dictate once, turn
+"Launch on Startup" on and off, quit, and uninstall with `--app`. Finally
+compare:
+
+```bash
+find ~/Library /Applications /tmp "$TMPDIR" -newer /tmp/anagnost-mark \
+  \( -iname '*anagnost*' -o -iname '*pedrojacob*' \) 2>/dev/null
+```
+
+The `find` should print nothing, and System Settings > Privacy & Security
+and Login Items should not list Anagnost. Running the uninstall a second
+time should find nothing to delete.
 
 ## macOS
 

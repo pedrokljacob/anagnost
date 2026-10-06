@@ -26,5 +26,6 @@ curl -fsSL https://raw.githubusercontent.com/pedrokljacob/anagnost/main/scripts/
 
 If "Launch on Startup" is on or Anagnost is running, it deletes nothing and
 tells you what to turn off first; run it again afterwards. Then it lists
-everything it will delete and asks before deleting. Details are in
-`BUILD.md`.
+everything it will delete and asks before deleting. Dragging the app to the
+Trash instead leaves its data, permissions and login item behind. What the
+script cannot remove is listed in `BUILD.md`.
