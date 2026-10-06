@@ -479,10 +479,6 @@
         "modelsButton": "Model Selection",
         "exitButton": "Exit Preview"
       },
-      "soundTheme": {
-        "label": "Sound Theme",
-        "description": "Choose a sound theme for recording start and stop feedback"
-      },
       "wordCorrectionThreshold": {
         "title": "Word Correction Threshold",
         "description": "Sensitivity for custom word corrections"

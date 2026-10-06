@@ -83,12 +83,6 @@ pub fn app_log_dir(app: &tauri::AppHandle) -> Result<PathBuf, tauri::Error> {
     }
 }
 
-/// Resolve a relative path against the app data directory (portable-aware).
-/// Replaces `app.path().resolve(path, BaseDirectory::AppData)`.
-pub fn resolve_app_data(app: &tauri::AppHandle, relative: &str) -> Result<PathBuf, tauri::Error> {
-    Ok(app_data_dir(app)?.join(relative))
-}
-
 /// Get the path to use with `tauri-plugin-store`.
 /// Returns an absolute path in portable mode (so the store plugin writes to
 /// the portable Data dir) or the original relative path otherwise.

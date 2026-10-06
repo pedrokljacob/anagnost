@@ -9,7 +9,6 @@ import { ReliablePasteToggle } from "./ReliablePaste";
 import { RecordingBuffer } from "./RecordingBuffer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { AlwaysOnMicrophone } from "../AlwaysOnMicrophone";
-import { SoundPicker } from "../SoundPicker";
 import { ClamshellMicrophoneSelector } from "../ClamshellMicrophoneSelector";
 import { KeyboardDiagnostic } from "./KeyboardDiagnostic";
 import {
@@ -37,10 +36,6 @@ export const DebugSettings: React.FC<DebugSettingsProps> = ({
             grouped={true}
           />
         )}
-        <SoundPicker
-          label={t("settings.debug.soundTheme.label")}
-          description={t("settings.debug.soundTheme.description")}
-        />
         <WordCorrectionThreshold descriptionMode="tooltip" grouped={true} />
         <PasteDelay descriptionMode="tooltip" grouped={true} />
         <PasteDelay
