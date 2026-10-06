@@ -42,7 +42,6 @@ recording_*
 
 # Agent tooling
 .claude/
-.crush/
 
 # Playwright
 playwright-report/
