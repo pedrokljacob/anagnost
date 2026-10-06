@@ -708,8 +708,6 @@ pub fn run(cli_args: CliArgs) {
             commands::history::get_history_entries,
             commands::history::toggle_history_entry_saved,
             commands::history::delete_history_entry,
-            commands::history::update_history_limit,
-            commands::history::update_recording_retention_period,
             helpers::clamshell::is_laptop,
         ])
         .events(collect_events![

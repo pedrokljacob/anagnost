@@ -64,8 +64,6 @@ export const defaultSettings = (): AppSettings => ({
   custom_words: [],
   model_unload_timeout: "min_5",
   word_correction_threshold: 0.18,
-  history_limit: 5,
-  recording_retention_period: "preserve_limit",
   paste_method: "ctrl_v",
   clipboard_handling: "dont_modify",
   auto_submit: false,

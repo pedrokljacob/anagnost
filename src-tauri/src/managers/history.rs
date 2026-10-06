@@ -10,6 +10,10 @@ use std::path::PathBuf;
 use tauri::AppHandle;
 use tauri_specta::Event;
 
+/// How many unsaved entries the history keeps. Saved (starred) entries are
+/// kept on top of these.
+const HISTORY_LIMIT: usize = 5;
+
 /// Database migrations for transcription history.
 /// Each migration is applied in order. The library tracks which migrations
 /// have been applied using SQLite's user_version pragma.
@@ -196,24 +200,10 @@ impl HistoryManager {
         Ok(entry)
     }
 
-    pub fn cleanup_old_entries(&self) -> Result<()> {
-        let retention_period = crate::settings::get_recording_retention_period(&self.app_handle);
-
-        match retention_period {
-            crate::settings::RecordingRetentionPeriod::Never => {
-                // Don't delete anything
-                Ok(())
-            }
-            crate::settings::RecordingRetentionPeriod::PreserveLimit => {
-                // Use the old count-based logic with history_limit
-                let limit = crate::settings::get_history_limit(&self.app_handle);
-                self.cleanup_by_count(limit)
-            }
-            _ => {
-                // Use time-based logic
-                self.cleanup_by_time(retention_period)
-            }
-        }
+    /// Keep the newest unsaved entries up to [`HISTORY_LIMIT`]; saved
+    /// (starred) entries are never pruned.
+    fn cleanup_old_entries(&self) -> Result<()> {
+        self.cleanup_by_count(HISTORY_LIMIT)
     }
 
     fn delete_entries(&self, ids: &[i64]) -> Result<usize> {
@@ -252,44 +242,6 @@ impl HistoryManager {
             if deleted_count > 0 {
                 debug!("Cleaned up {} old history entries by count", deleted_count);
             }
-        }
-
-        Ok(())
-    }
-
-    fn cleanup_by_time(
-        &self,
-        retention_period: crate::settings::RecordingRetentionPeriod,
-    ) -> Result<()> {
-        let conn = self.get_connection()?;
-
-        // Calculate cutoff timestamp (current time minus retention period)
-        let now = Utc::now().timestamp();
-        let cutoff_timestamp = match retention_period {
-            crate::settings::RecordingRetentionPeriod::Days3 => now - (3 * 24 * 60 * 60), // 3 days in seconds
-            crate::settings::RecordingRetentionPeriod::Weeks2 => now - (2 * 7 * 24 * 60 * 60), // 2 weeks in seconds
-            crate::settings::RecordingRetentionPeriod::Months3 => now - (3 * 30 * 24 * 60 * 60), // 3 months in seconds (approximate)
-            _ => unreachable!("Should not reach here"),
-        };
-
-        // Get all unsaved entries older than the cutoff timestamp
-        let mut stmt = conn
-            .prepare("SELECT id FROM transcription_history WHERE saved = 0 AND timestamp < ?1")?;
-
-        let rows = stmt.query_map(params![cutoff_timestamp], |row| row.get::<_, i64>("id"))?;
-
-        let mut entries_to_delete: Vec<i64> = Vec::new();
-        for row in rows {
-            entries_to_delete.push(row?);
-        }
-
-        let deleted_count = self.delete_entries(&entries_to_delete)?;
-
-        if deleted_count > 0 {
-            debug!(
-                "Cleaned up {} old history entries based on retention period",
-                deleted_count
-            );
         }
 
         Ok(())

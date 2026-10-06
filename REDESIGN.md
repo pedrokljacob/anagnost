@@ -100,8 +100,8 @@ stays (`DECISIONS.md`), so it gets its screen.
       card, download progress, delete confirmation.
 - [ ] **History**: entry list, copy, star, delete, empty state (audio player
       and re-transcribe removed).
-- [ ] **Advanced**: app, output, transcription, history and experimental
-      groups; structure depends on Phase 0.
+- [ ] **Advanced**: app, output, transcription and experimental groups;
+      structure depends on Phase 0.
 - [ ] **Post-processing**: provider, API key, base URL, model, prompts,
       shortcut.
 - [ ] **Debug**: diagnostics, log viewer, onboarding preview (if kept).

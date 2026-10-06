@@ -16,6 +16,5 @@ or decided (decisions go to `DECISIONS.md`).
 - Model hosting: keep using Handy's mirror and Hugging Face org, or self-host.
 - Trim the model catalog to the families actually used.
 - VAD: keep Silero, earshot, or both.
-- History retention: keep both the entry limit and the auto-delete period, or merge them.
 - Auto-updater: re-add once Anagnost publishes signed releases.
 - Own CI (checks and tests).
