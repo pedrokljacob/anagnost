@@ -164,7 +164,7 @@ S=$PWD/.scratch
 cd src-tauri
 LD_LIBRARY_PATH=$PWD/transcribe-libs \
 XDG_DATA_HOME=$S/xdg/data XDG_CONFIG_HOME=$S/xdg/config \
-XDG_CACHE_HOME=$S/xdg/cache HF_HOME=$S/hf \
+XDG_CACHE_HOME=$S/xdg/cache \
 xvfb-run -a target/debug/anagnost \
   --transcribe-file $S/audio/jfk.wav \
   --model handy-computer/canary-180m-flash-gguf/canary-180m-flash-Q8_0.gguf
@@ -177,7 +177,8 @@ Test data:
 
 - Model: download `canary-180m-flash-Q8_0.gguf` from the
   `handy-computer/canary-180m-flash-gguf` Hugging Face repo into the HF cache
-  layout under `$S/hf/hub/models--handy-computer--canary-180m-flash-gguf/`
+  layout under
+  `$S/xdg/data/com.pedrojacob.anagnost/huggingface/models--handy-computer--canary-180m-flash-gguf/`
   (`snapshots/<revision>/` plus `refs/main` containing the revision). Take the
   revision from `src-tauri/src/catalog/catalog.json`.
 - Audio: `jfk.wav` from whisper.cpp's `samples/` directory, saved as

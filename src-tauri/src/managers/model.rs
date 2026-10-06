@@ -14,7 +14,7 @@ use std::fs;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tar::Archive;
 use tauri::{AppHandle, Emitter, Manager};
@@ -48,12 +48,12 @@ pub enum ModelSource {
         /// Expected SHA-256 for integrity verification; `None` skips it.
         sha256: Option<String>,
     },
-    /// A file inside a Hugging Face Hub repo, fetched via hf-hub into the shared
-    /// HF cache (so other tools reuse it). The file within the repo is
+    /// A file inside a Hugging Face Hub repo, fetched via hf-hub into the app's
+    /// HF cache. The file within the repo is
     /// [`ModelInfo::filename`].
     HuggingFace { repo_id: String, revision: String },
     /// Already present on disk — a user-provided custom model, or one discovered
-    /// in a shared cache. Nothing to download.
+    /// in the HF cache. Nothing to download.
     Local,
 }
 
@@ -319,9 +319,15 @@ pub struct DownloadProgress {
     pub percentage: f64,
 }
 
-/// Resolve a Hugging Face model file in the shared HF cache, if already present.
-/// Uses hf-hub's stock location (HF_HOME or ~/.cache/huggingface/hub) so
-/// downloads are shared with other tools.
+/// Hugging Face cache, kept inside the app data folder so every model the app
+/// downloads lives in one place. Set once by [`ModelManager::new`].
+static HF_CACHE_DIR: OnceLock<PathBuf> = OnceLock::new();
+
+fn hf_cache() -> Option<Cache> {
+    HF_CACHE_DIR.get().cloned().map(Cache::new)
+}
+
+/// Resolve a Hugging Face model file in the app's HF cache, if already present.
 ///
 /// hf-hub resolves purely through `refs/<revision>`. Pinned downloads write
 /// `refs/<commit-sha>`, but caches populated before pinning — or by other
@@ -329,8 +335,9 @@ pub struct DownloadProgress {
 /// back to it. Grandfathered `main` copies may predate the pin; per policy a
 /// working local model is never invalidated by routine catalog regeneration.
 fn hf_cached_path(repo_id: &str, revision: &str, filename: &str) -> Option<PathBuf> {
+    let cache = hf_cache()?;
     let get = |rev: &str| {
-        Cache::from_env()
+        cache
             .repo(Repo::with_revision(
                 repo_id.to_string(),
                 RepoType::Model,
@@ -525,13 +532,15 @@ pub struct ModelManager {
 impl ModelManager {
     pub fn new(app_handle: &AppHandle) -> Result<Self> {
         // Create models directory in app data
-        let models_dir = crate::portable::app_data_dir(app_handle)
-            .map_err(|e| anyhow::anyhow!("Failed to get app data dir: {}", e))?
-            .join("models");
+        let app_data_dir = crate::portable::app_data_dir(app_handle)
+            .map_err(|e| anyhow::anyhow!("Failed to get app data dir: {}", e))?;
+        let models_dir = app_data_dir.join("models");
 
         if !models_dir.exists() {
             fs::create_dir_all(&models_dir)?;
         }
+
+        let _ = HF_CACHE_DIR.set(app_data_dir.join("huggingface"));
 
         let mut available_models = HashMap::new();
 
@@ -1126,7 +1135,7 @@ impl ModelManager {
             warn!("Failed to discover custom models: {}", e);
         }
 
-        // Auto-discover transcribe-cpp GGUF models already in the shared HF cache.
+        // Auto-discover transcribe-cpp GGUF models already in the app's HF cache.
         Self::discover_hf_cache_models(&mut available_models);
 
         let manager = Self {
@@ -1205,7 +1214,7 @@ impl ModelManager {
         }
     }
 
-    /// Re-run the local discovery scans (custom models dir + shared HF cache) so
+    /// Re-run the local discovery scans (custom models dir + HF cache) so
     /// models dropped in or downloaded outside Handy show up without a restart.
     /// The merge is additive: only new ids are inserted, so existing entries keep
     /// their values — including runtime-probed capabilities from
@@ -1489,7 +1498,7 @@ impl ModelManager {
             .is_some_and(|model| model.is_downloaded)
     }
 
-    /// Remove a single file from the shared HF cache: the snapshot pointer for
+    /// Remove a single file from the HF cache: the snapshot pointer for
     /// the resolved revision and, when the pointer is a symlink, the blob it
     /// points to. Everything else in the repo (other quants, refs) is left
     /// untouched. Returns whether anything was removed.
@@ -1536,7 +1545,7 @@ impl ModelManager {
         }
 
         // If onboarding is still pending, do not auto-select just because a
-        // compatible model exists on disk or in the shared HF cache. The
+        // compatible model exists on disk or in the HF cache. The
         // onboarding model step should present that choice explicitly.
         if !settings.onboarding_completed {
             debug!("Skipping model auto-selection until onboarding is complete");
@@ -1729,12 +1738,12 @@ impl ModelManager {
     }
 
     /// Discover transcribe-cpp-compatible GGUF models already present in the
-    /// shared Hugging Face cache, so models downloaded by Handy (or any other
-    /// tool) appear in "Your Models" without re-downloading. Only architectures
-    /// transcribe-cpp recognises are surfaced; arbitrary (e.g. LLM) GGUFs that
-    /// share the cache are ignored.
+    /// app's Hugging Face cache, so they appear in "Your Models". Only
+    /// architectures transcribe-cpp recognises are surfaced.
     fn discover_hf_cache_models(available_models: &mut HashMap<String, ModelInfo>) {
-        Self::discover_hf_cache_models_in(Cache::from_env().path(), available_models);
+        if let Some(cache) = hf_cache() {
+            Self::discover_hf_cache_models_in(cache.path(), available_models);
+        }
     }
 
     /// Scan a Hugging Face cache root (`<cache>/models--*`) for GGUF snapshots.
@@ -1885,7 +1894,7 @@ impl ModelManager {
         })
     }
 
-    /// Download a Hugging Face-sourced model into the shared HF cache via
+    /// Download a Hugging Face-sourced model into the app's HF cache via
     /// hf-hub, reporting progress through the same `model-download-progress`
     /// event the URL path uses. Uses hf-hub's stock cache, but deliberately
     /// disables authentication because every catalog repository is public.
@@ -1898,7 +1907,7 @@ impl ModelManager {
         let model_id = model_info.id.clone();
         let filename = model_info.filename.clone();
 
-        // Already in the shared cache (possibly from another tool), or dropped
+        // Already in the HF cache, or dropped
         // into the models dir (mirror fallback / manual install)? Done.
         if hf_cached_path(&repo_id, &revision, &filename).is_some()
             || self.models_dir.join(&filename).exists()
@@ -1961,9 +1970,10 @@ impl ModelManager {
 
             // Fresh client per attempt so a wedged connection from the previous
             // try can't poison the retry.
-            let api = ApiBuilder::from_env()
-                // Ignore cached and environment-provided credentials. A stale token
-                // can make otherwise-public downloads fail authentication.
+            let cache = hf_cache()
+                .ok_or_else(|| anyhow::anyhow!("Hugging Face cache is not initialised"))?;
+            let api = ApiBuilder::from_cache(cache)
+                // Downloads are public; never send a token.
                 .with_token(None)
                 .with_progress(false)
                 .with_max_files(stream_count)
@@ -2025,7 +2035,7 @@ impl ModelManager {
                 Ok(_) => break None,
                 Err(hf_hub::api::tokio::ApiError::Cancelled) if cancel_token.is_cancelled() => {
                     // User cancelled. hf-hub leaves the partially downloaded
-                    // `.sync.part` in the shared cache, so a later attempt resumes
+                    // `.sync.part` in the HF cache, so a later attempt resumes
                     // instead of restarting. The guard resets is_downloading and
                     // drops the token; `cancel_download` already emitted
                     // `model-download-cancelled`.
@@ -2411,8 +2421,7 @@ impl ModelManager {
                 deleted |= Self::delete_hf_cache_file(repo_id, revision, &model_info.filename);
             } else if let Some(file) = hf_cached_path(repo_id, revision, &model_info.filename) {
                 // Cached at <cache>/models--org--name/snapshots/<rev>/<file>; remove
-                // the whole repo dir (blobs + refs + snapshots). Per product decision,
-                // delete hard-removes from the shared HF cache.
+                // the whole repo dir (blobs + refs + snapshots).
                 if let Some(repo_dir) = file.ancestors().nth(3) {
                     if repo_dir
                         .file_name()

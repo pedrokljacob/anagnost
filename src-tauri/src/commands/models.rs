@@ -22,7 +22,7 @@ pub async fn get_model_info(
     Ok(model_manager.get_model_info(&model_id))
 }
 
-/// Re-scan local sources (custom models dir + shared HF cache) for models added
+/// Re-scan local sources (custom models dir + HF cache) for models added
 /// since launch
 #[tauri::command]
 #[specta::specta]

@@ -618,7 +618,7 @@ async getTranscriptionModelStatus() : Promise<Result<string | null, string>> {
 }
 },
 /**
- * Re-scan local sources (custom models dir + shared HF cache) for models added
+ * Re-scan local sources (custom models dir + HF cache) for models added
  * since launch
  */
 async rescanLocalModels() : Promise<Result<null, string>> {
@@ -879,14 +879,14 @@ export type ModelSource =
  */
 sha256: string | null } } | 
 /**
- * A file inside a Hugging Face Hub repo, fetched via hf-hub into the shared
- * HF cache (so other tools reuse it). The file within the repo is
+ * A file inside a Hugging Face Hub repo, fetched via hf-hub into the app's
+ * HF cache. The file within the repo is
  * [`ModelInfo::filename`].
  */
 { HuggingFace: { repo_id: string; revision: string } } | 
 /**
  * Already present on disk — a user-provided custom model, or one discovered
- * in a shared cache. Nothing to download.
+ * in the HF cache. Nothing to download.
  */
 "Local"
 export type ModelUnloadTimeout = "never" | "immediately" | "min_2" | "min_5" | "min_10" | "min_15" | "hour_1" | "sec_15"
