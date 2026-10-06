@@ -1,6 +1,4 @@
 import React from "react";
-import { useSettings } from "../../hooks/useSettings";
-import { GlobalShortcutInput } from "./GlobalShortcutInput";
 import { HandyKeysShortcutInput } from "./HandyKeysShortcutInput";
 
 interface ShortcutInputProps {
@@ -11,20 +9,10 @@ interface ShortcutInputProps {
 }
 
 /**
- * Wrapper component that selects the appropriate shortcut input implementation
- * based on the keyboard_implementation setting.
- *
- * - "tauri" (default): Uses GlobalShortcutInput with JS keyboard events
- * - "handy_keys": Uses HandyKeysShortcutInput with backend key events
+ * Shortcut input for a binding. Recording always goes through the handy-keys
+ * backend; the Rust `keyboard_implementation` setting only decides which
+ * backend registers the shortcut.
  */
-export const ShortcutInput: React.FC<ShortcutInputProps> = (props) => {
-  const { getSetting } = useSettings();
-  const keyboardImplementation = getSetting("keyboard_implementation");
-
-  // Default to Tauri implementation if not set
-  if (keyboardImplementation === "handy_keys") {
-    return <HandyKeysShortcutInput {...props} />;
-  }
-
-  return <GlobalShortcutInput {...props} />;
-};
+export const ShortcutInput: React.FC<ShortcutInputProps> = (props) => (
+  <HandyKeysShortcutInput {...props} />
+);

@@ -17,7 +17,6 @@ import { HistoryLimit } from "../HistoryLimit";
 import { RecordingRetentionPeriodSelector } from "../RecordingRetentionPeriod";
 import { ExperimentalToggle } from "../ExperimentalToggle";
 import { useSettings } from "../../../hooks/useSettings";
-import { KeyboardImplementationSelector } from "../debug/KeyboardImplementationSelector";
 import { VoiceActivityDetection } from "../VoiceActivityDetection";
 import { AccelerationSelector } from "../AccelerationSelector";
 import { LazyStreamClose } from "../LazyStreamClose";
@@ -67,10 +66,6 @@ export const AdvancedSettings: React.FC = () => {
       {experimentalEnabled && (
         <SettingsGroup title={t("settings.advanced.groups.experimental")}>
           <PostProcessingToggle descriptionMode="tooltip" grouped={true} />
-          <KeyboardImplementationSelector
-            descriptionMode="tooltip"
-            grouped={true}
-          />
           <AccelerationSelector descriptionMode="tooltip" grouped={true} />
           <LazyStreamClose descriptionMode="tooltip" grouped={true} />
           <VadBackendSelector descriptionMode="tooltip" grouped={true} />

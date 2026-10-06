@@ -399,20 +399,6 @@ async changeAppLanguageSetting(language: string) : Promise<Result<null, string>>
     else return { status: "error", error: e  as any };
 }
 },
-/**
- * Change the keyboard implementation with runtime switching.
- * This will unregister all shortcuts from the old implementation,
- * validate shortcuts for the new implementation (resetting invalid ones to defaults),
- * and register them with the new implementation.
- */
-async changeKeyboardImplementationSetting(implementation: string) : Promise<Result<ImplementationChangeResult, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("change_keyboard_implementation_setting", { implementation }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
 async changeShowTrayIconSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_show_tray_icon_setting", { enabled }) };
@@ -939,14 +925,6 @@ export type EngineType =
 export type GpuDeviceOption = { id: string; name: string; total_vram_mb: number }
 export type HistoryEntry = { id: number; file_name: string; timestamp: number; saved: boolean; title: string; transcription_text: string; post_processed_text: string | null; post_process_prompt: string | null; post_process_requested: boolean }
 export type HistoryUpdatePayload = { action: "added"; entry: HistoryEntry } | { action: "updated"; entry: HistoryEntry } | { action: "deleted"; id: number } | { action: "toggled"; id: number }
-/**
- * Result of changing keyboard implementation
- */
-export type ImplementationChangeResult = { success: boolean; 
-/**
- * List of binding IDs that were reset to defaults due to incompatibility
- */
-reset_bindings: string[] }
 export type KeyboardDiagnosticReport = { secure_input_enabled: boolean; culprit_pid: number | null; culprit_name: string | null; 
 /**
  * Counts only — key identity is deliberately never captured.
