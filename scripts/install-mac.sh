@@ -14,6 +14,7 @@ set -euo pipefail
 REPO="pedrokljacob/anagnost"
 BASE_URL="https://github.com/$REPO/releases/download/latest"
 ASSET="anagnost-macos-arm64.dmg"
+MIN_MACOS=13
 
 force=false
 for arg in "$@"; do
@@ -28,6 +29,17 @@ done
 
 if [[ "$(uname)" != "Darwin" ]]; then
   echo "This script is for macOS." >&2
+  exit 1
+fi
+# hw.optional.arm64 is 1 on Apple Silicon even when this shell runs under
+# Rosetta, where `uname -m` says x86_64.
+if [[ "$(sysctl -n hw.optional.arm64 2>/dev/null)" != 1 ]]; then
+  echo "The app is built for Apple Silicon only; this Mac has an Intel processor." >&2
+  exit 1
+fi
+macos_version=$(sw_vers -productVersion)
+if ((${macos_version%%.*} < MIN_MACOS)); then
+  echo "The app needs macOS $MIN_MACOS or later; this Mac runs macOS $macos_version." >&2
   exit 1
 fi
 
