@@ -42,13 +42,13 @@ Local builds use the ad-hoc `signingIdentity: "-"`. A rebuild can have a new mac
 identity while the old **System Settings > Privacy & Security > Accessibility** entry
 remains visibly enabled, leaving the app on `Waiting...`.
 
-After installing the final bundle at `/Applications/Handy.app`, quit the app, clear only
+After installing the final bundle at `/Applications/Anagnost.app`, quit the app, clear only
 its stale Accessibility record, then reopen it:
 
 ```bash
-osascript -e 'tell application id "com.pais.handy" to quit' || true
-tccutil reset Accessibility com.pais.handy
-open /Applications/Handy.app
+osascript -e 'tell application id "com.pedrojacob.anagnost" to quit' || true
+tccutil reset Accessibility com.pedrojacob.anagnost
+open /Applications/Anagnost.app
 ```
 
 Grant Accessibility again when prompted. This does not reset Microphone or other TCC
@@ -58,8 +58,8 @@ For optional diagnosis, compare the designated requirements of the previous and 
 bundles:
 
 ```bash
-codesign -dr - /path/to/previous/Handy.app 2>&1
-codesign -dr - /Applications/Handy.app 2>&1
+codesign -dr - /path/to/previous/Anagnost.app 2>&1
+codesign -dr - /Applications/Anagnost.app 2>&1
 ```
 
 An ad-hoc requirement contains a `cdhash`; a changed requirement confirms the rebuild is
@@ -109,7 +109,7 @@ cd src-tauri
 LD_LIBRARY_PATH=$PWD/transcribe-libs \
 XDG_DATA_HOME=$S/xdg/data XDG_CONFIG_HOME=$S/xdg/config \
 XDG_CACHE_HOME=$S/xdg/cache HF_HOME=$S/hf \
-xvfb-run -a target/debug/handy \
+xvfb-run -a target/debug/anagnost \
   --transcribe-file $S/audio/jfk.wav \
   --model handy-computer/canary-180m-flash-gguf/canary-180m-flash-Q8_0.gguf
 ```
