@@ -82,8 +82,14 @@ const settingUpdaters: {
   audio_feedback_volume: (value) =>
     commands.changeAudioFeedbackVolumeSetting(value as number),
   start_hidden: (value) => commands.changeStartHiddenSetting(value as boolean),
-  autostart_enabled: (value) =>
-    commands.changeAutostartSetting(value as boolean),
+  autostart_enabled: async (value) => {
+    // Fails when macOS refuses to add or remove the login item; the store
+    // then reverts the toggle instead of showing a state the system is not in.
+    const result = await commands.changeAutostartSetting(value as boolean);
+    if (result.status === "error") {
+      throw new Error(result.error);
+    }
+  },
   shortcut_activation: (value) =>
     commands.changeShortcutActivationSetting(value as ShortcutActivation),
   hold_threshold_ms: (value) =>

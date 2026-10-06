@@ -290,8 +290,10 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         tray::update_tray_menu(&app_handle_for_listener);
     });
 
-    // Apply the launch-at-login preference
-    autostart::apply_autostart(settings.autostart_enabled);
+    // Apply the launch-at-login preference. A failure is retried next launch.
+    if let Err(e) = autostart::apply_autostart(settings.autostart_enabled, false) {
+        log::warn!("Could not apply the launch-at-login setting: {e}");
+    }
 
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);

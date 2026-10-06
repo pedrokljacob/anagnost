@@ -487,12 +487,14 @@ pub fn change_start_hidden_setting(app: AppHandle, enabled: bool) -> Result<(), 
 #[tauri::command]
 #[specta::specta]
 pub fn change_autostart_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    // Register or remove the login item first and persist the setting only
+    // once the system confirms it, so the saved value never claims a state
+    // the login item is not in (the uninstall script relies on it).
+    crate::autostart::apply_autostart(enabled, true)?;
+
     let mut settings = settings::get_settings(&app);
     settings.autostart_enabled = enabled;
     settings::write_settings(&app, settings);
-
-    // Apply the autostart setting immediately
-    crate::autostart::apply_autostart(enabled);
 
     // Notify frontend
     let _ = app.emit(
