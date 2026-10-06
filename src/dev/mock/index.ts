@@ -94,6 +94,44 @@ const applySettingChange = (cmd: string, args: Record<string, unknown>) => {
   return true;
 };
 
+// Like model.rs: progress events while the bytes arrive, then
+// model-download-complete; the command resolves when the download ends.
+const cancelledDownloads = new Set<string>();
+const downloadModel = async (modelId: string) => {
+  const model = models.find((m) => m.id === modelId);
+  if (!model) throw `Model not found: ${modelId}`;
+  cancelledDownloads.delete(modelId);
+  model.is_downloading = true;
+  const total = Math.round(model.size_mb * 1024 * 1024);
+  const steps = 20;
+  for (let step = 0; step <= steps; step++) {
+    if (cancelledDownloads.has(modelId)) return null;
+    const downloaded = Math.round((total * step) / steps);
+    await emit("model-download-progress", {
+      model_id: modelId,
+      downloaded,
+      total,
+      percentage: total > 0 ? (downloaded / total) * 100 : 0,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+  Object.assign(model, {
+    is_downloading: false,
+    is_downloaded: true,
+    partial_size: 0,
+  });
+  await emit("model-download-complete", modelId);
+  return null;
+};
+
+const cancelDownload = async (modelId: string) => {
+  cancelledDownloads.add(modelId);
+  const model = models.find((m) => m.id === modelId);
+  if (model) Object.assign(model, { is_downloading: false, partial_size: 0 });
+  await emit("model-download-cancelled", modelId);
+  return null;
+};
+
 mockIPC(
   (cmd, rawArgs) => {
     const args = (rawArgs ?? {}) as Record<string, unknown>;
@@ -109,6 +147,10 @@ mockIPC(
       case "set_active_model":
         settings.selected_model = args.modelId as string;
         return null;
+      case "download_model":
+        return downloadModel(args.modelId as string);
+      case "cancel_download":
+        return cancelDownload(args.modelId as string);
       case "get_available_microphones":
         return microphones;
       case "get_available_output_devices":
