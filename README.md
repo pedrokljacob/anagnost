@@ -3,3 +3,5 @@
 # Anagnost
 
 Created in [T3 Code](https://t3.codes).
+
+A macOS dictation app built on a fork of [Handy](https://github.com/cjpais/Handy) by CJ Pais (MIT, see `LICENSE`). Build instructions are in `BUILD.md`.
