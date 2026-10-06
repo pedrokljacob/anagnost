@@ -120,9 +120,9 @@ mockIPC(
       case "get_history_entries":
         return { entries: history, has_more: false };
       case "get_app_dir_path":
-        return "/Users/you/Library/Application Support/com.pais.handy";
+        return "/Users/you/Library/Application Support/com.pedrojacob.anagnost";
       case "get_log_dir_path":
-        return "/Users/you/Library/Logs/com.pais.handy";
+        return "/Users/you/Library/Logs/com.pedrojacob.anagnost";
       case "get_audio_file_path":
         return `/tmp/${args.fileName as string}`;
       case "is_laptop":
@@ -138,7 +138,7 @@ mockIPC(
       case "plugin:app|version":
         return "0.9.8";
       case "plugin:app|name":
-        return "Handy";
+        return "Anagnost";
       case "plugin:os|locale":
         return "en-US";
       case "plugin:macos-permissions|check_accessibility_permission":

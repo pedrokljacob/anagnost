@@ -15,9 +15,8 @@ and the progress.
   screenshots and Pedro picks one. Screens get one proposal.
 - **Wording:** reworded screen by screen, following the tone guide set in
   Phase 1.
-- **Name:** the app name is changed on a separate branch. Leave name-bearing
-  strings ("Handy", window title, product name, identifier) alone until it
-  lands; brand assets wait for it too.
+- **Name:** the app is Anagnost (see `DECISIONS.md`). Brand assets (app and
+  tray icons, logos) are still Handy's and wait for a decision in `BACKLOG.md`.
 
 ## Workflow for one unit
 
