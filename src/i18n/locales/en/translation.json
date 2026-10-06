@@ -210,7 +210,7 @@
       },
       "rescan": {
         "label": "Rescan",
-        "tooltip": "Rescan for models added to the models folder or Hugging Face cache outside Anagnost"
+        "tooltip": "Rescan for models copied into the app's models folder or Hugging Face cache"
       },
       "noModelsMatch": "No models match this filter."
     },
