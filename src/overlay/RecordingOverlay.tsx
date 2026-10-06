@@ -9,8 +9,7 @@ import type {
   StreamTextEvent,
   StreamWorkKind,
 } from "@/bindings";
-import i18n, { syncLanguageFromSettings } from "@/i18n";
-import { getLanguageDirection } from "@/lib/utils/rtl";
+import { syncLanguageFromSettings } from "@/i18n";
 
 type OverlayState = "recording" | "streaming" | "transcribing" | "processing";
 
@@ -50,7 +49,6 @@ const RecordingOverlay: React.FC = () => {
   // until they scroll back down.
   const capRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
-  const direction = getLanguageDirection(i18n.language);
 
   useEffect(() => {
     const setupEventListeners = async () => {
@@ -240,7 +238,7 @@ const RecordingOverlay: React.FC = () => {
     const collapsed = working && !hasText;
 
     return (
-      <div dir={direction} className={`ov-stage ${position}`}>
+      <div className={`ov-stage ${position}`}>
         <div
           key={session}
           className={`scard ${open ? "open" : ""} ${collapsed ? "working" : ""} ${
@@ -289,10 +287,7 @@ const RecordingOverlay: React.FC = () => {
       : t("overlay.transcribing");
 
   return (
-    <div
-      dir={direction}
-      className={`ov-stage ${position} ov-fade ${isVisible ? "show" : ""}`}
-    >
+    <div className={`ov-stage ${position} ov-fade ${isVisible ? "show" : ""}`}>
       <div
         className={`scard compact ${working && isVisible ? "cworking" : ""}`}
       >
