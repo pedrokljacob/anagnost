@@ -106,8 +106,8 @@ retention settings), so History is designed without them.
 - [ ] **Post-processing**: provider, API key, base URL, model, prompts,
       shortcut (if kept in Phase 0).
 - [ ] **Debug**: diagnostics, log viewer, onboarding preview (if kept).
-- [ ] **About**: version, folders, links, acknowledgements; theme selector
-      removed (theme follows the system).
+- [ ] **About**: version, folders, acknowledgements; theme selector removed
+      (theme follows the system).
 - [ ] **Onboarding**: permissions step, model picker.
 - [ ] **Warnings**: accessibility permissions, secure input.
 
@@ -121,6 +121,5 @@ retention settings), so History is designed without them.
       (`src-tauri/src/tray.rs`, strings under `tray` in `translation.json`).
 - [ ] **Sounds**: start and stop sounds (`src-tauri/resources/marimba_*.wav`).
 - [ ] **App icon and brand assets**: `src-tauri/icons/`, `assets/icon.svg`,
-      `src/components/icons/`, `src-tauri/resources/*.png` (after the name
-      lands).
+      `src/components/icons/`, `src-tauri/resources/*.png`.
 - [ ] **System text**: microphone permission prompt (`src-tauri/Info.plist`).
