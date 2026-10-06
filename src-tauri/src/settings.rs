@@ -906,7 +906,7 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
 
 pub fn get_settings(app: &AppHandle) -> AppSettings {
     let store = app
-        .store(crate::portable::store_path(SETTINGS_STORE_PATH))
+        .store(SETTINGS_STORE_PATH)
         .expect("Failed to initialize store");
 
     // Settings reads also persist one-time migrations. Migration helpers are
@@ -1096,7 +1096,7 @@ fn normalize_keyboard_implementation(settings: &mut AppSettings, handy_keys_only
 
 pub fn write_settings(app: &AppHandle, settings: AppSettings) {
     let store = app
-        .store(crate::portable::store_path(SETTINGS_STORE_PATH))
+        .store(SETTINGS_STORE_PATH)
         .expect("Failed to initialize store");
 
     store.set("settings", serde_json::to_value(&settings).unwrap());

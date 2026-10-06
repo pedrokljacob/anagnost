@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::fs;
 use std::path::PathBuf;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use tauri_specta::Event;
 
 /// How many unsaved entries the history keeps. Saved (starred) entries are
@@ -68,7 +68,7 @@ pub struct HistoryManager {
 
 impl HistoryManager {
     pub fn new(app_handle: &AppHandle) -> Result<Self> {
-        let app_data_dir = crate::portable::app_data_dir(app_handle)?;
+        let app_data_dir = app_handle.path().app_data_dir()?;
         fs::create_dir_all(&app_data_dir)?;
         let db_path = app_data_dir.join("history.db");
 

@@ -15,7 +15,7 @@ mod managers;
 mod memory;
 mod overlay;
 mod paste_tx;
-pub mod portable;
+mod paths;
 mod secure_input;
 mod settings;
 mod shortcut;
@@ -611,9 +611,6 @@ pub fn run(cli_args: CliArgs) {
     // instead of accumulating in malloc arenas (#1792). No-op off Linux/glibc.
     memory::init_allocator();
 
-    // Detect portable mode before anything else
-    portable::init();
-
     // Parse console logging directives from RUST_LOG, falling back to info-level logging
     // when the variable is unset
     let console_filter = build_console_filter();
@@ -729,7 +726,7 @@ pub fn run(cli_args: CliArgs) {
         cli_args.transcribe_file.is_some() || cli_args.list_devices || cli_args.list_models;
 
     let context = tauri::generate_context!();
-    let log_dir = portable::log_dir(&context.config().identifier);
+    let log_dir = paths::log_dir(&context.config().identifier);
 
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default()
