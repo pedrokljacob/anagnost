@@ -27,7 +27,7 @@ Instructions for AI coding agents working in this repository. Keep this file sho
 - Stage files by name after reviewing `git status` and `git diff`. Never use `git add -A` or `git add .`.
 - Never commit secrets, `.env` files, build output, dependencies, or anything gitignored.
 - Never push, force-push, rewrite history, or change git config without an explicit request.
-- Conventional Commits: `<type>(<optional scope>): <summary>`. Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`. Imperative, lowercase, no trailing period, 50 characters or fewer. Body only when the *why* is not obvious, wrapped at 72.
+- Conventional Commits: `<type>(<optional scope>): <summary>`. Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`. Imperative, lowercase, no trailing period, 50 characters or fewer. Body only when the _why_ is not obvious, wrapped at 72.
 
 ## When in doubt
 
