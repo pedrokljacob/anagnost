@@ -5,7 +5,7 @@ or decided (decisions go to `DECISIONS.md`).
 
 ## Separate threads
 
-- Platform code: strip Linux/Windows code (cfg blocks in `clipboard.rs`, `overlay.rs`, `build.rs`, audio, tray; `paste_tx/windows.rs`; `portable.rs`; Windows mic permission onboarding; Linux typing tools, extra paste methods, CUDA/DirectML/ROCm, Colored tray theme). Keep the crate compiling on Linux.
+- Platform code: strip Linux/Windows code (cfg blocks in `clipboard.rs`, `overlay.rs`, `build.rs`, audio, tray; `paste_tx/windows.rs`; `portable.rs`; Windows mic permission onboarding; Linux typing tools, extra paste methods, CUDA/DirectML/ROCm, Colored tray theme). Keep the crate compiling on Linux. Also fix `build.rs` comments that still cite the deleted `tauri.windows.conf.json`, and check shortcut recording on Linux (the UI always records through handy-keys; the Linux default backend is Tauri).
 - History: keep text history, drop saved audio (player, re-transcribe, retention settings).
 - Legacy ONNX engines: remove `transcribe-rs` engines and the hardcoded legacy model table. Check the 5 old Whisper entries in that table.
 - Mac build: minimal GitHub Actions workflow on a macOS runner (Apple Silicon, macOS 27) producing the `.app`/`.dmg`. Needs a GitHub repo.
