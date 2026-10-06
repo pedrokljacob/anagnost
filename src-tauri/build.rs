@@ -484,7 +484,7 @@ fn build_apple_intelligence_bridge() {
         .expect("Unable to determine Swift toolchain lib directory");
     let sdk_swift_lib = Path::new(&sdk_path).join("usr/lib/swift");
 
-    // Use macOS 11.0 as deployment target for compatibility
+    // Deployment target matches the app's minimum macOS (tauri.conf.json).
     // The @available(macOS 26.0, *) checks in Swift handle runtime availability
     // Weak linking for FoundationModels is handled via cargo:rustc-link-arg below
     let status = Command::new(&swiftc_path)
@@ -499,7 +499,7 @@ fn build_apple_intelligence_bridge() {
             //   https://forums.swift.org/t/main-in-a-single-swift-file/63079
             "-parse-as-library",
             "-target",
-            "arm64-apple-macosx11.0",
+            "arm64-apple-macosx13.0",
             "-sdk",
             &sdk_path,
             "-O",

@@ -42,7 +42,6 @@ pub use transcription_coordinator::TranscriptionCoordinator;
 
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Listener, Manager};
-use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_log::{Builder as LogBuilder, RotationStrategy, Target, TargetKind};
 
 use crate::settings::get_settings;
@@ -348,9 +347,8 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         tray::update_tray_menu(&app_handle_for_listener);
     });
 
-    // Apply the autostart preference (SMAppService login item on macOS 13+,
-    // tauri-plugin-autostart elsewhere)
-    autostart::apply_autostart(app_handle, settings.autostart_enabled);
+    // Apply the launch-at-login preference
+    autostart::apply_autostart(settings.autostart_enabled);
 
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);
@@ -816,10 +814,6 @@ pub fn run(cli_args: CliArgs) {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .plugin(tauri_plugin_autostart::init(
-            MacosLauncher::LaunchAgent,
-            Some(vec![]),
-        ))
         .manage(cli_args.clone())
         .setup(move |app| {
             #[cfg(target_os = "windows")]
