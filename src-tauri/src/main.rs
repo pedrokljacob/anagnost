@@ -19,7 +19,7 @@ fn main() {
         // Avoid overlay/capture layer crashes (#2049). Set before backend
         // initialization, preserving user overrides.
         if std::env::var_os("VK_LOADER_LAYERS_DISABLE").is_none()
-            && !anagnost_lib::env_flag_enabled("HANDY_KEEP_VULKAN_IMPLICIT_LAYERS")
+            && !anagnost_lib::env_flag_enabled("ANAGNOST_KEEP_VULKAN_IMPLICIT_LAYERS")
         {
             std::env::set_var("VK_LOADER_LAYERS_DISABLE", "~implicit~");
         }
