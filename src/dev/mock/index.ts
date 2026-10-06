@@ -160,7 +160,19 @@ mockIPC(
       case "get_available_accelerators":
         return { transcribe: ["auto", "cpu", "gpu"], ort: [], gpu_devices: [] };
       case "get_history_entries":
-        return { entries: history, has_more: false };
+        return { entries: structuredClone(history), has_more: false };
+      case "toggle_history_entry_saved": {
+        const entry = history.find((e) => e.id === args.id);
+        if (entry) entry.saved = !entry.saved;
+        emit("history-update-payload", { action: "toggled", id: args.id });
+        return null;
+      }
+      case "delete_history_entry": {
+        const index = history.findIndex((e) => e.id === args.id);
+        if (index !== -1) history.splice(index, 1);
+        emit("history-update-payload", { action: "deleted", id: args.id });
+        return null;
+      }
       case "get_app_dir_path":
         return "/Users/you/Library/Application Support/com.pedrojacob.anagnost";
       case "get_log_dir_path":
