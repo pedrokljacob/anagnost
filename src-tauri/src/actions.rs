@@ -634,19 +634,9 @@ impl ShortcutAction for TranscribeAction {
                     utils::hide_recording_overlay(&ah);
                     set_tray_state(&ah, TrayIconState::Idle);
                 } else {
-                    // Save WAV concurrently with transcription
-                    let sample_count = samples.len();
-                    let file_name = format!("anagnost-{}.wav", chrono::Utc::now().timestamp());
-                    let wav_path = hm.recordings_dir().join(&file_name);
-                    let wav_path_for_verify = wav_path.clone();
-                    let samples_for_wav = samples.clone();
-                    let wav_handle = tauri::async_runtime::spawn_blocking(move || {
-                        crate::audio_toolkit::save_wav_file(&wav_path, &samples_for_wav)
-                    });
-
-                    // Transcribe concurrently with WAV save. If a live stream was
-                    // running, finalize it and use its text (all audio was already
-                    // fed to the stream); otherwise batch-transcribe the samples.
+                    // If a live stream was running, finalize it and use its text
+                    // (all audio was already fed to the stream); otherwise
+                    // batch-transcribe the samples.
                     let transcription_time = Instant::now();
                     let transcription_result = match tm.finalize_stream() {
                         // A finalized stream with usable text wins. An empty result
@@ -658,30 +648,6 @@ impl ShortcutAction for TranscribeAction {
                         Ok(Some(text)) if !text.trim().is_empty() => Ok(text),
                         Ok(_) => tm.transcribe(samples),
                         Err(err) => Err(err),
-                    };
-
-                    // Await WAV save and verify
-                    let wav_saved = match wav_handle.await {
-                        Ok(Ok(())) => {
-                            match crate::audio_toolkit::verify_wav_file(
-                                &wav_path_for_verify,
-                                sample_count,
-                            ) {
-                                Ok(()) => true,
-                                Err(e) => {
-                                    error!("WAV verification failed: {}", e);
-                                    false
-                                }
-                            }
-                        }
-                        Ok(Err(e)) => {
-                            error!("Failed to save WAV file: {}", e);
-                            false
-                        }
-                        Err(e) => {
-                            error!("WAV save task panicked: {}", e);
-                            false
-                        }
                     };
 
                     if rm.was_cancelled_since(cancel_generation) {
@@ -725,17 +691,13 @@ impl ShortcutAction for TranscribeAction {
                                 return;
                             }
 
-                            // Save to history if WAV was saved
-                            if wav_saved {
-                                if let Err(err) = hm.save_entry(
-                                    file_name,
-                                    transcription,
-                                    post_process,
-                                    processed.post_processed_text.clone(),
-                                    processed.post_process_prompt.clone(),
-                                ) {
-                                    error!("Failed to save history entry: {}", err);
-                                }
+                            if let Err(err) = hm.save_entry(
+                                transcription,
+                                post_process,
+                                processed.post_processed_text.clone(),
+                                processed.post_process_prompt.clone(),
+                            ) {
+                                error!("Failed to save history entry: {}", err);
                             }
 
                             if processed.final_text.is_empty() {
@@ -788,18 +750,6 @@ impl ShortcutAction for TranscribeAction {
                             // Surface the failure to the UI (toast). The full
                             // message is also in anagnost.log via the line above.
                             let _ = ah.emit("transcription-error", err.to_string());
-                            // Save entry with empty text so user can retry
-                            if wav_saved {
-                                if let Err(save_err) = hm.save_entry(
-                                    file_name,
-                                    String::new(),
-                                    post_process,
-                                    None,
-                                    None,
-                                ) {
-                                    error!("Failed to save failed history entry: {}", save_err);
-                                }
-                            }
                             utils::hide_recording_overlay(&ah);
                             set_tray_state(&ah, TrayIconState::Idle);
                         }

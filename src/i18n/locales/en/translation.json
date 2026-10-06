@@ -437,7 +437,6 @@
     },
     "history": {
       "title": "History",
-      "openFolder": "Open Recordings Folder",
       "loading": "Loading history...",
       "empty": "No transcriptions yet. Start recording to build your history!",
       "copyToClipboard": "Copy transcription to clipboard",
@@ -446,10 +445,7 @@
       "unsave": "Remove from saved",
       "delete": "Delete entry",
       "deleteError": "Failed to delete entry. Please try again.",
-      "retranscribe": "Re-transcribe",
-      "retranscribeError": "Failed to re-transcribe. Please try again.",
-      "transcribing": "Transcribing...",
-      "transcriptionFailed": "Transcription failed. You can re-transcribe using the retry icon."
+      "transcriptionFailed": "Transcription failed."
     },
     "debug": {
       "title": "Debug",
@@ -489,8 +485,8 @@
         "entries": "entries"
       },
       "recordingRetention": {
-        "title": "Auto-Delete Recordings",
-        "description": "Automatically delete old recordings to save space",
+        "title": "Auto-Delete History",
+        "description": "Automatically delete old history entries",
         "never": "Never",
         "preserveLimit": "Keep latest {{count}}",
         "days3": "After 3 days",

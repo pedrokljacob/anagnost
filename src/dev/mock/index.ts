@@ -123,8 +123,6 @@ mockIPC(
         return "/Users/you/Library/Application Support/com.pedrojacob.anagnost";
       case "get_log_dir_path":
         return "/Users/you/Library/Logs/com.pedrojacob.anagnost";
-      case "get_audio_file_path":
-        return `/tmp/${args.fileName as string}`;
       case "is_laptop":
         return true;
       case "get_secure_input_status":

@@ -206,7 +206,6 @@ const now = () => Math.floor(Date.now() / 1000);
 export const historyEntries = (): HistoryEntry[] => [
   {
     id: 4,
-    file_name: "recording_4.wav",
     timestamp: now() - 120,
     saved: false,
     title: "",
@@ -218,7 +217,6 @@ export const historyEntries = (): HistoryEntry[] => [
   },
   {
     id: 3,
-    file_name: "recording_3.wav",
     timestamp: now() - 3 * HOUR,
     saved: true,
     title: "",
@@ -231,7 +229,6 @@ export const historyEntries = (): HistoryEntry[] => [
   },
   {
     id: 2,
-    file_name: "recording_2.wav",
     timestamp: now() - 26 * HOUR,
     saved: false,
     title: "",
@@ -243,7 +240,6 @@ export const historyEntries = (): HistoryEntry[] => [
   },
   {
     id: 1,
-    file_name: "recording_1.wav",
     timestamp: now() - 8 * 24 * HOUR,
     saved: false,
     title: "",

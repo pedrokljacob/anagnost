@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use chrono::{DateTime, Local, Utc};
 use log::{debug, error, info};
 use rusqlite::{params, Connection, OptionalExtension};
@@ -6,7 +6,7 @@ use rusqlite_migration::{Migrations, M};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::AppHandle;
 use tauri_specta::Event;
 
@@ -31,6 +31,8 @@ static MIGRATIONS: &[M] = &[
     M::up("ALTER TABLE transcription_history ADD COLUMN post_processed_text TEXT;"),
     M::up("ALTER TABLE transcription_history ADD COLUMN post_process_prompt TEXT;"),
     M::up("ALTER TABLE transcription_history ADD COLUMN post_process_requested BOOLEAN NOT NULL DEFAULT 0;"),
+    // History keeps text only; recordings are no longer saved.
+    M::up("ALTER TABLE transcription_history DROP COLUMN file_name;"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]
@@ -44,8 +46,6 @@ pub struct PaginatedHistory {
 pub enum HistoryUpdatePayload {
     #[serde(rename = "added")]
     Added { entry: HistoryEntry },
-    #[serde(rename = "updated")]
-    Updated { entry: HistoryEntry },
     #[serde(rename = "deleted")]
     Deleted { id: i64 },
     #[serde(rename = "toggled")]
@@ -55,7 +55,6 @@ pub enum HistoryUpdatePayload {
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]
 pub struct HistoryEntry {
     pub id: i64,
-    pub file_name: String,
     pub timestamp: i64,
     pub saved: bool,
     pub title: String,
@@ -67,26 +66,19 @@ pub struct HistoryEntry {
 
 pub struct HistoryManager {
     app_handle: AppHandle,
-    recordings_dir: PathBuf,
     db_path: PathBuf,
 }
 
 impl HistoryManager {
     pub fn new(app_handle: &AppHandle) -> Result<Self> {
-        // Create recordings directory in app data dir
         let app_data_dir = crate::portable::app_data_dir(app_handle)?;
-        let recordings_dir = app_data_dir.join("recordings");
+        fs::create_dir_all(&app_data_dir)?;
         let db_path = app_data_dir.join("history.db");
 
-        // Ensure recordings directory exists
-        if !recordings_dir.exists() {
-            fs::create_dir_all(&recordings_dir)?;
-            debug!("Created recordings directory: {:?}", recordings_dir);
-        }
+        remove_legacy_recordings(&app_data_dir);
 
         let manager = Self {
             app_handle: app_handle.clone(),
-            recordings_dir,
             db_path,
         };
 
@@ -130,6 +122,11 @@ impl HistoryManager {
             );
         } else {
             debug!("Database already at latest version {}", version_after);
+        }
+
+        // Reclaim space left by pruned entries so the file does not only grow.
+        if let Err(e) = conn.execute_batch("VACUUM;") {
+            error!("Failed to vacuum history database: {}", e);
         }
 
         Ok(())
@@ -199,7 +196,6 @@ impl HistoryManager {
     fn map_history_entry(row: &rusqlite::Row<'_>) -> rusqlite::Result<HistoryEntry> {
         Ok(HistoryEntry {
             id: row.get("id")?,
-            file_name: row.get("file_name")?,
             timestamp: row.get("timestamp")?,
             saved: row.get("saved")?,
             title: row.get("title")?,
@@ -210,15 +206,9 @@ impl HistoryManager {
         })
     }
 
-    pub fn recordings_dir(&self) -> &std::path::Path {
-        &self.recordings_dir
-    }
-
     /// Save a new history entry to the database.
-    /// The WAV file should already have been written to the recordings directory.
     pub fn save_entry(
         &self,
-        file_name: String,
         transcription_text: String,
         post_process_requested: bool,
         post_processed_text: Option<String>,
@@ -230,7 +220,6 @@ impl HistoryManager {
         let conn = self.get_connection()?;
         conn.execute(
             "INSERT INTO transcription_history (
-                file_name,
                 timestamp,
                 saved,
                 title,
@@ -238,9 +227,8 @@ impl HistoryManager {
                 post_processed_text,
                 post_process_prompt,
                 post_process_requested
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
-                &file_name,
                 timestamp,
                 false,
                 &title,
@@ -253,7 +241,6 @@ impl HistoryManager {
 
         let entry = HistoryEntry {
             id: conn.last_insert_rowid(),
-            file_name,
             timestamp,
             saved: false,
             title,
@@ -269,54 +256,6 @@ impl HistoryManager {
 
         // Emit typed event for real-time frontend updates
         if let Err(e) = (HistoryUpdatePayload::Added {
-            entry: entry.clone(),
-        })
-        .emit(&self.app_handle)
-        {
-            error!("Failed to emit history-updated event: {}", e);
-        }
-
-        Ok(entry)
-    }
-
-    /// Update an existing history entry with new transcription results (used by retry).
-    pub fn update_transcription(
-        &self,
-        id: i64,
-        transcription_text: String,
-        post_processed_text: Option<String>,
-        post_process_prompt: Option<String>,
-    ) -> Result<HistoryEntry> {
-        let conn = self.get_connection()?;
-        let updated = conn.execute(
-            "UPDATE transcription_history
-             SET transcription_text = ?1,
-                 post_processed_text = ?2,
-                 post_process_prompt = ?3
-             WHERE id = ?4",
-            params![
-                transcription_text,
-                post_processed_text,
-                post_process_prompt,
-                id
-            ],
-        )?;
-
-        if updated == 0 {
-            return Err(anyhow!("History entry {} not found", id));
-        }
-
-        let entry = conn
-            .query_row(
-                "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
-                 FROM transcription_history WHERE id = ?1",
-                params![id],
-                Self::map_history_entry,
-            )?;
-
-        debug!("Updated transcription for history entry {}", id);
-
-        if let Err(e) = (HistoryUpdatePayload::Updated {
             entry: entry.clone(),
         })
         .emit(&self.app_handle)
@@ -347,31 +286,15 @@ impl HistoryManager {
         }
     }
 
-    fn delete_entries_and_files(&self, entries: &[(i64, String)]) -> Result<usize> {
-        if entries.is_empty() {
-            return Ok(0);
-        }
-
+    fn delete_entries(&self, ids: &[i64]) -> Result<usize> {
         let conn = self.get_connection()?;
         let mut deleted_count = 0;
 
-        for (id, file_name) in entries {
-            // Delete database entry
-            conn.execute(
+        for id in ids {
+            deleted_count += conn.execute(
                 "DELETE FROM transcription_history WHERE id = ?1",
                 params![id],
             )?;
-
-            // Delete WAV file
-            let file_path = self.recordings_dir.join(file_name);
-            if file_path.exists() {
-                if let Err(e) = fs::remove_file(&file_path) {
-                    error!("Failed to delete WAV file {}: {}", file_name, e);
-                } else {
-                    debug!("Deleted old WAV file: {}", file_name);
-                    deleted_count += 1;
-                }
-            }
         }
 
         Ok(deleted_count)
@@ -382,21 +305,19 @@ impl HistoryManager {
 
         // Get all entries that are not saved, ordered by timestamp desc
         let mut stmt = conn.prepare(
-            "SELECT id, file_name FROM transcription_history WHERE saved = 0 ORDER BY timestamp DESC"
+            "SELECT id FROM transcription_history WHERE saved = 0 ORDER BY timestamp DESC",
         )?;
 
-        let rows = stmt.query_map([], |row| {
-            Ok((row.get::<_, i64>("id")?, row.get::<_, String>("file_name")?))
-        })?;
+        let rows = stmt.query_map([], |row| row.get::<_, i64>("id"))?;
 
-        let mut entries: Vec<(i64, String)> = Vec::new();
+        let mut entries: Vec<i64> = Vec::new();
         for row in rows {
             entries.push(row?);
         }
 
         if entries.len() > limit {
             let entries_to_delete = &entries[limit..];
-            let deleted_count = self.delete_entries_and_files(entries_to_delete)?;
+            let deleted_count = self.delete_entries(entries_to_delete)?;
 
             if deleted_count > 0 {
                 debug!("Cleaned up {} old history entries by count", deleted_count);
@@ -422,20 +343,17 @@ impl HistoryManager {
         };
 
         // Get all unsaved entries older than the cutoff timestamp
-        let mut stmt = conn.prepare(
-            "SELECT id, file_name FROM transcription_history WHERE saved = 0 AND timestamp < ?1",
-        )?;
+        let mut stmt = conn
+            .prepare("SELECT id FROM transcription_history WHERE saved = 0 AND timestamp < ?1")?;
 
-        let rows = stmt.query_map(params![cutoff_timestamp], |row| {
-            Ok((row.get::<_, i64>("id")?, row.get::<_, String>("file_name")?))
-        })?;
+        let rows = stmt.query_map(params![cutoff_timestamp], |row| row.get::<_, i64>("id"))?;
 
-        let mut entries_to_delete: Vec<(i64, String)> = Vec::new();
+        let mut entries_to_delete: Vec<i64> = Vec::new();
         for row in rows {
             entries_to_delete.push(row?);
         }
 
-        let deleted_count = self.delete_entries_and_files(&entries_to_delete)?;
+        let deleted_count = self.delete_entries(&entries_to_delete)?;
 
         if deleted_count > 0 {
             debug!(
@@ -459,7 +377,7 @@ impl HistoryManager {
             (Some(cursor_id), Some(lim)) => {
                 let fetch_count = (lim + 1) as i64;
                 let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
+                    "SELECT id, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
                      FROM transcription_history
                      WHERE id < ?1
                      ORDER BY id DESC
@@ -473,7 +391,7 @@ impl HistoryManager {
             (None, Some(lim)) => {
                 let fetch_count = (lim + 1) as i64;
                 let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
+                    "SELECT id, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
                      FROM transcription_history
                      ORDER BY id DESC
                      LIMIT ?1",
@@ -485,7 +403,7 @@ impl HistoryManager {
             }
             (_, None) => {
                 let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
+                    "SELECT id, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
                      FROM transcription_history
                      ORDER BY id DESC",
                 )?;
@@ -509,7 +427,6 @@ impl HistoryManager {
         let mut stmt = conn.prepare(
             "SELECT
                 id,
-                file_name,
                 timestamp,
                 saved,
                 title,
@@ -536,7 +453,6 @@ impl HistoryManager {
         let mut stmt = conn.prepare(
             "SELECT
                 id,
-                file_name,
                 timestamp,
                 saved,
                 title,
@@ -581,48 +497,8 @@ impl HistoryManager {
         Ok(())
     }
 
-    pub fn get_audio_file_path(&self, file_name: &str) -> PathBuf {
-        self.recordings_dir.join(file_name)
-    }
-
-    pub async fn get_entry_by_id(&self, id: i64) -> Result<Option<HistoryEntry>> {
-        let conn = self.get_connection()?;
-        let mut stmt = conn.prepare(
-            "SELECT
-                id,
-                file_name,
-                timestamp,
-                saved,
-                title,
-                transcription_text,
-                post_processed_text,
-                post_process_prompt,
-                post_process_requested
-             FROM transcription_history
-             WHERE id = ?1",
-        )?;
-
-        let entry = stmt.query_row([id], Self::map_history_entry).optional()?;
-
-        Ok(entry)
-    }
-
     pub async fn delete_entry(&self, id: i64) -> Result<()> {
         let conn = self.get_connection()?;
-
-        // Get the entry to find the file name
-        if let Some(entry) = self.get_entry_by_id(id).await? {
-            // Delete the audio file first
-            let file_path = self.get_audio_file_path(&entry.file_name);
-            if file_path.exists() {
-                if let Err(e) = fs::remove_file(&file_path) {
-                    error!("Failed to delete audio file {}: {}", entry.file_name, e);
-                    // Continue with database deletion even if file deletion fails
-                }
-            }
-        }
-
-        // Delete from database
         conn.execute(
             "DELETE FROM transcription_history WHERE id = ?1",
             params![id],
@@ -649,6 +525,21 @@ impl HistoryManager {
     }
 }
 
+/// Remove the `recordings/` folder left by versions that saved audio.
+fn remove_legacy_recordings(app_data_dir: &Path) {
+    let recordings_dir = app_data_dir.join("recordings");
+    if !recordings_dir.exists() {
+        return;
+    }
+    match fs::remove_dir_all(&recordings_dir) {
+        Ok(()) => info!("Removed legacy recordings folder {:?}", recordings_dir),
+        Err(e) => error!(
+            "Failed to remove legacy recordings folder {:?}: {}",
+            recordings_dir, e
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -659,7 +550,6 @@ mod tests {
         conn.execute_batch(
             "CREATE TABLE transcription_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                file_name TEXT NOT NULL,
                 timestamp INTEGER NOT NULL,
                 saved BOOLEAN NOT NULL DEFAULT 0,
                 title TEXT NOT NULL,
@@ -676,7 +566,6 @@ mod tests {
     fn insert_entry(conn: &Connection, timestamp: i64, text: &str, post_processed: Option<&str>) {
         conn.execute(
             "INSERT INTO transcription_history (
-                file_name,
                 timestamp,
                 saved,
                 title,
@@ -684,9 +573,8 @@ mod tests {
                 post_processed_text,
                 post_process_prompt,
                 post_process_requested
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
-                format!("anagnost-{}.wav", timestamp),
                 timestamp,
                 false,
                 format!("Recording {}", timestamp),
@@ -733,5 +621,49 @@ mod tests {
 
         assert_eq!(entry.timestamp, 100);
         assert_eq!(entry.transcription_text, "completed");
+    }
+
+    #[test]
+    fn migrations_drop_file_name_and_keep_entries() {
+        let mut conn = Connection::open_in_memory().expect("open in-memory db");
+        let migrations = Migrations::new(MIGRATIONS.to_vec());
+        migrations
+            .to_version(&mut conn, MIGRATIONS.len() - 1)
+            .expect("migrate to the last audio version");
+        conn.execute(
+            "INSERT INTO transcription_history (file_name, timestamp, title, transcription_text)
+             VALUES ('handy-1.wav', 1, 'Recording 1', 'kept')",
+            [],
+        )
+        .expect("insert legacy entry");
+
+        migrations.to_latest(&mut conn).expect("migrate to latest");
+
+        let has_file_name: bool = conn
+            .query_row(
+                "SELECT COUNT(*) > 0 FROM pragma_table_info('transcription_history')
+                 WHERE name = 'file_name'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read table info");
+        assert!(!has_file_name);
+        let entry = HistoryManager::get_latest_entry_with_conn(&conn)
+            .expect("fetch latest entry")
+            .expect("entry kept");
+        assert_eq!(entry.transcription_text, "kept");
+    }
+
+    #[test]
+    fn remove_legacy_recordings_deletes_folder() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let recordings = dir.path().join("recordings");
+        fs::create_dir_all(&recordings).expect("create recordings dir");
+        fs::write(recordings.join("handy-1.wav"), b"RIFF").expect("write wav");
+
+        remove_legacy_recordings(dir.path());
+
+        assert!(!recordings.exists());
+        assert!(dir.path().exists());
     }
 }
