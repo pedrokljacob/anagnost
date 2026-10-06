@@ -4,6 +4,42 @@ Anagnost ships for macOS on Apple Silicon. The Mac app is built on a Mac;
 Linux is only a test bench for the Rust crate and the frontend (see
 [Linux test bench](#linux-test-bench)).
 
+## Install the latest CI build
+
+Every push to `main` runs `.github/workflows/mac-build.yml` on a GitHub
+Apple Silicon runner and publishes the app as the rolling `latest`
+pre-release. No local build is needed.
+
+Install or update it on the Mac (needs `brew install gh && gh auth login`):
+
+```bash
+gh api repos/pedrokljacob/anagnost/contents/scripts/install-mac.sh \
+  -H "Accept: application/vnd.github.raw" | bash
+```
+
+From a checkout, `scripts/install-mac.sh` does the same. It skips the
+download when the installed build is already current; pass `--force` to
+reinstall (`| bash -s -- --force` for the one-liner).
+
+### Signing certificate
+
+CI signs with a self-signed certificate so every build keeps the same code
+identity and macOS keeps the Accessibility and Microphone grants across
+updates. One-time setup:
+
+1. In Keychain Access, choose **Certificate Assistant > Create a
+   Certificate…**: name `Anagnost Signing`, identity type **Self-Signed
+   Root**, certificate type **Code Signing**, tick **Let me override
+   defaults** and set the validity to 3650 days.
+2. Export it from **login > My Certificates** as a `.p12` with a password.
+3. Add three repository secrets under **Settings > Secrets and variables >
+   Actions**: `APPLE_CERTIFICATE` (output of `base64 -i <file>.p12`),
+   `APPLE_CERTIFICATE_PASSWORD`, and `APPLE_SIGNING_IDENTITY`
+   (`Anagnost Signing`).
+
+Keep the `.p12` and its password somewhere safe and delete the file. A new
+certificate means granting the permissions once more.
+
 ## macOS
 
 ### Prerequisites
