@@ -1898,8 +1898,9 @@ impl ModelManager {
 
     /// Download a Hugging Face-sourced model into the app's HF cache via
     /// hf-hub, reporting progress through the same `model-download-progress`
-    /// event the URL path uses. Uses hf-hub's stock cache, but deliberately
-    /// disables authentication because every catalog repository is public.
+    /// event the URL path uses. Uses hf-hub's cache layout, rooted in the app
+    /// data folder (see [`hf_cache`]), and deliberately disables
+    /// authentication because every catalog repository is public.
     async fn download_hf_model(
         &self,
         model_info: &ModelInfo,
