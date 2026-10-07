@@ -1,8 +1,9 @@
 name: CI
 
-# Runs the Linux test bench (see BUILD.md) on every push and pull request.
-# On main it then builds the Apple Silicon app and publishes it as the
-# rolling `latest` pre-release; scripts/install-mac.sh installs it from there.
+# Runs the Linux test bench (see BUILD.md) on every push and pull request:
+# the frontend checks and the Rust tests as two parallel jobs. On main it
+# then builds the Apple Silicon app and publishes it as the rolling
+# `latest` pre-release; scripts/install-mac.sh installs it from there.
 
 on:
   push:
@@ -20,10 +21,66 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: Linux tests
+  checks:
+    name: Frontend checks
     # Branches in this repository are already tested on push; pull requests
     # only add runs for forks.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build frontend
+        run: bun run build
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Check formatting
+        run: bunx prettier --check .
+
+      - name: Unit tests
+        run: bun run test
+
+      - name: Decision guards
+        run: bun run check:decisions
+
+      - name: Check model languages
+        run: bun run check:model-languages
+
+      # WebKit is the closest match to the Mac's WKWebView. The browser is
+      # cached by Playwright version; only its system libraries are
+      # installed on every run.
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(bun pm ls 2>/dev/null | grep -o '@playwright/test@[0-9.]*' | head -1 | cut -d@ -f3)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        id: browser-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-webkit-${{ steps.playwright.outputs.version }}
+
+      - name: Install WebKit
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: bunx playwright install webkit
+
+      - name: Install WebKit system libraries
+        run: bunx playwright install-deps webkit
+
+      - name: UI contract tests
+        run: bun run test:ui
+
+  test:
+    name: Rust tests
     if: >-
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name != github.repository
@@ -46,8 +103,9 @@ jobs:
           # Branch runs reuse main's cache; only main refreshes it.
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      # The BUILD.md "Linux test bench" list minus what only a headless run
-      # (xvfb), an AppImage (patchelf) or a human (vulkan-tools) needs.
+      # The BUILD.md "Linux test bench" list minus what only an AppImage
+      # (patchelf) or a human (vulkan-tools) needs; xvfb runs the headless
+      # binary for the bindings check.
       - name: Install system packages
         run: |
           sudo apt-get update
@@ -55,7 +113,7 @@ jobs:
             build-essential clang libclang-dev libevdev-dev libasound2-dev \
             pkg-config libssl-dev libvulkan-dev glslc spirv-headers \
             glslang-tools libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
-            librsvg2-dev cmake
+            librsvg2-dev cmake xvfb
 
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
@@ -64,25 +122,33 @@ jobs:
       - name: Build frontend
         run: bun run build
 
-      - name: Lint
-        run: bun run lint
-
       - name: Check formatting
-        run: bun run format:check
-
-      - name: Test keyboard utilities
-        run: bun run test:keyboard
-
-      - name: Check model languages
-        run: bun run check:model-languages
+        working-directory: src-tauri
+        run: cargo fmt -- --check
 
       - name: Test Rust crate
         working-directory: src-tauri
         run: cargo test
 
+      # A debug build rewrites src/bindings.ts when it starts. Running the
+      # headless binary once shows whether the committed file matches the
+      # Rust commands and types. The only expected difference on Linux is
+      # the doc comment of isLaptop (see BUILD.md), which the -I patterns
+      # ignore.
+      - name: Check generated bindings
+        working-directory: src-tauri
+        env:
+          XDG_DATA_HOME: ${{ runner.temp }}/xdg/data
+          XDG_CONFIG_HOME: ${{ runner.temp }}/xdg/config
+          XDG_CACHE_HOME: ${{ runner.temp }}/xdg/cache
+        run: |
+          LD_LIBRARY_PATH=$PWD/transcribe-libs xvfb-run -a cargo run -- --list-models >/dev/null
+          git diff --exit-code -I 'laptop|battery|pmset|macOS' -I '^\s*\*\s*$' ../src/bindings.ts \
+            || { echo "::error::src/bindings.ts is out of date; run the app once in debug and commit it"; exit 1; }
+
   build:
     name: Mac build
-    needs: test
+    needs: [checks, test]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: macos-26
     timeout-minutes: 90
@@ -90,6 +156,9 @@ jobs:
       contents: write
     env:
       ASSET: anagnost-macos-arm64.dmg
+      # Fails the build when the disk image grows past this. Raise it on
+      # purpose, with the reason in the commit; see BUILD.md, "Build size".
+      SIZE_BUDGET_MB: 20
     steps:
       - uses: actions/checkout@v5
         with:
@@ -187,6 +256,17 @@ jobs:
           APP=$(echo src-tauri/target/release/bundle/macos/*.app)
           codesign --verify --deep --strict "$APP"
           codesign -dr - "$APP"
+
+      - name: Check build size
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          DMG=$(echo src-tauri/target/release/bundle/dmg/*.dmg)
+          size=$(stat -f %z "$DMG")
+          echo "Disk image: $((size / 1024 / 1024)) MB (budget $SIZE_BUDGET_MB MB)"
+          if [ "$size" -gt $((SIZE_BUDGET_MB * 1024 * 1024)) ]; then
+            echo "::error::The disk image is over the $SIZE_BUDGET_MB MB budget"
+            exit 1
+          fi
 
       # latest.txt tells the install script the commit and the app bundle
       # name without needing the GitHub API. The release is updated in
