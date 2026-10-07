@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import { describe, expect, test } from "bun:test";
 import { formatKeyCombination, getKeyName } from "./keyboard";
 
 const keyboardEvent = (value: { code?: string; key?: string }): KeyboardEvent =>
@@ -13,15 +13,28 @@ const compoundKeys = [
   ["PrintScreen", "printscreen", "Print Screen"],
 ] as const;
 
-for (const [code, stored, displayed] of compoundKeys) {
-  assert.equal(getKeyName(keyboardEvent({ code })), stored);
-  assert.equal(formatKeyCombination(stored, "linux"), displayed);
-}
+describe("compound keys", () => {
+  for (const [code, stored, displayed] of compoundKeys) {
+    test(`${code} is stored as ${stored} and shown as ${displayed}`, () => {
+      expect(getKeyName(keyboardEvent({ code }))).toBe(stored);
+      expect(formatKeyCombination(stored, "linux")).toBe(displayed);
+    });
+  }
+});
 
-assert.equal(getKeyName(keyboardEvent({ key: "CapsLock" })), "capslock");
-assert.equal(
-  getKeyName(keyboardEvent({ code: "AudioVolumeUp" })),
-  "audiovolumeup",
-);
+test("falls back to the key name when the code is absent", () => {
+  expect(getKeyName(keyboardEvent({ key: "CapsLock" }))).toBe("capslock");
+});
 
-console.log("keyboard: all assertions passed");
+test("media keys keep their full name", () => {
+  expect(getKeyName(keyboardEvent({ code: "AudioVolumeUp" }))).toBe(
+    "audiovolumeup",
+  );
+});
+
+test("modifiers are named per platform", () => {
+  expect(formatKeyCombination("option+space", "macos")).toBe("Option + Space");
+  expect(formatKeyCombination("ctrl+shift+d", "linux")).toBe(
+    "Ctrl + Shift + D",
+  );
+});

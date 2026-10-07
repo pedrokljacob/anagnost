@@ -1,17 +1,16 @@
-import assert from "node:assert/strict";
+import { expect, test } from "bun:test";
 import { copyToClipboard } from "./clipboard";
 
-const successfulClipboard = {
-  writeText: async () => {},
-};
+test("reports success when the clipboard accepts the text", async () => {
+  const clipboard = { writeText: async () => {} };
+  expect(await copyToClipboard("copied text", clipboard)).toBe(true);
+});
 
-const failedClipboard = {
-  writeText: async () => {
-    throw new Error("clipboard unavailable");
-  },
-};
-
-assert.equal(await copyToClipboard("copied text", successfulClipboard), true);
-assert.equal(await copyToClipboard("copied text", failedClipboard), false);
-
-console.log("clipboard: all assertions passed");
+test("reports failure instead of throwing when the clipboard is unavailable", async () => {
+  const clipboard = {
+    writeText: async () => {
+      throw new Error("clipboard unavailable");
+    },
+  };
+  expect(await copyToClipboard("copied text", clipboard)).toBe(false);
+});
