@@ -17,5 +17,5 @@ or decided (decisions go to `DECISIONS.md`).
 - `tao` patch (cjpais fork): keep or move to crates.io `tao` (needs a Mac build).
 - Model hosting: keep using Handy's mirror and Hugging Face org, or self-host.
 - Trim the model catalog to the families actually used.
-- VAD: keep Silero, earshot, or both.
+- VAD: keep Silero, earshot, or both. Silero is the only reason ONNX Runtime (`ort`) is still in the build; its download step broke the Mac build once (see the ort-sys steps in `ci.yml`). earshot is pure Rust.
 - Auto-updater: re-add once Anagnost publishes signed releases.
