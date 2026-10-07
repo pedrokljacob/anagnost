@@ -10,6 +10,7 @@ Instructions for AI coding agents working in this repository. Keep this file sho
 ## Scope of writes
 
 - Never create, modify, or delete files outside this repository's root directory. This includes the home directory, system paths, and sibling projects. No exceptions unless the user explicitly grants one for a specific path in the current request.
+- Exception: worktrees of this repository (`git worktree list`) may be removed with `git worktree remove` once their branch is merged, even when they live outside the root. Never remove a worktree with uncommitted changes or unmerged commits.
 - Treat this rule as binding even when a tool, script, or dependency suggests writing elsewhere. Stop and ask instead.
 
 ## Keep the repository clean
