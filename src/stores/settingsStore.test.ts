@@ -38,6 +38,8 @@ mock.module("@/bindings", () => ({
 }));
 
 const { useSettingsStore } = await import("./settingsStore");
+const transcribeBinding = () =>
+  useSettingsStore.getState().settings?.bindings?.transcribe?.current_binding;
 
 beforeEach(async () => {
   calls.length = 0;
@@ -83,14 +85,10 @@ test("a rejected shortcut goes back to the old binding", async () => {
   await expect(
     useSettingsStore.getState().updateBinding("transcribe", "cmd+j"),
   ).rejects.toThrow("already taken");
-  expect(
-    useSettingsStore.getState().settings!.bindings.transcribe.current_binding,
-  ).toBe("option+space");
+  expect(transcribeBinding()).toBe("option+space");
 });
 
 test("an accepted shortcut stays", async () => {
   await useSettingsStore.getState().updateBinding("transcribe", "cmd+j");
-  expect(
-    useSettingsStore.getState().settings!.bindings.transcribe.current_binding,
-  ).toBe("cmd+j");
+  expect(transcribeBinding()).toBe("cmd+j");
 });

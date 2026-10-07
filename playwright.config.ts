@@ -3,9 +3,9 @@ import { defineConfig } from "@playwright/test";
 // UI contract tests: the mock preview (`bun run preview:ui`) in headless
 // WebKit, asserting ARIA snapshots. See "UI contract tests" in BUILD.md.
 //
-// Version: the only @playwright/test release whose bundled WebKit build is
-// 2365, the one in the local browser cache (stable 1.63 ships 2359, the 1.64
-// betas 2370). Bump it together with `playwright install webkit`.
+// @playwright/test is pinned exactly: each release bundles one WebKit build,
+// and CI caches the browser by that version. Bump it together with
+// `bunx playwright install webkit`.
 export default defineConfig({
   testDir: "tests/ui",
   fullyParallel: true,

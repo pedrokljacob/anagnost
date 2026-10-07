@@ -14,7 +14,7 @@
     "format:check": "prettier --check . && cd src-tauri && cargo fmt -- --check",
     "format:frontend": "prettier --write .",
     "format:backend": "cd src-tauri && cargo fmt",
-    "test": "bun test",
+    "test": "bun test src",
     "check": "bun run lint && bun run format:check && bun run test && bun run check:decisions && bun run check:model-languages",
     "check:decisions": "bun scripts/check-decisions.ts",
     "test:ui": "playwright test",
@@ -36,7 +36,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
-    "@playwright/test": "1.64.0-alpha-1789764292000",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "^4.1.16",
     "@tauri-apps/cli": "^2.11.0",
     "@types/bun": "^1.4.2",
