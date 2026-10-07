@@ -31,6 +31,13 @@ Instructions for AI coding agents working in this repository. Keep this file sho
 - Never push, force-push, rewrite history, or change git config without an explicit request.
 - Conventional Commits: `<type>(<optional scope>): <summary>`. Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`. Imperative, lowercase, no trailing period, 50 characters or fewer. Body only when the _why_ is not obvious, wrapped at 72.
 
+## Tests
+
+- Every change carries its tests: add one for new behaviour, update the ones a changed behaviour breaks, delete the ones that covered removed code. The commit says which when it is not obvious.
+- Where they live: Rust unit tests next to the code (`cargo test`); frontend unit tests as `*.test.ts` next to the code (`bun run test`); UI contract tests in `tests/ui/` (`bun run test:ui`, aria snapshots of the mock preview); decision guards in `scripts/check-decisions.ts`.
+- A new line in `DECISIONS.md` gets a guard in `scripts/check-decisions.ts` when it shows in the tree; a deleted line loses its guard. A fix that must not be undone gets one too.
+- Run `bun run check` before every commit, and `cargo test` after a Rust change. UI snapshots change only with an intended UI change: update them with `bun run test:ui:update` and review the diff.
+
 ## When in doubt
 
 - If a task seems to require a new file, a new directory, or a write outside the root, ask before proceeding.

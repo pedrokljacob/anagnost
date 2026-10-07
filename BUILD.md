@@ -122,10 +122,38 @@ and the Hugging Face cache live alongside. Post-processing is off by
 default and only sends text off the Mac when you configure a remote
 provider.
 
+### Checking a build on the Mac
+
+Tauri cannot drive a macOS window, so a build is checked by hand on a Mac.
+`scripts/check-mac.sh` does the part a script can verify and prints one
+line per check: the installed app verifies and carries the CI certificate,
+its bundle identifier, minimum macOS and stamped commit are right, the
+commit matches the published `latest` build, the app data folder is private
+and the logs hold no provider response bodies, no webview storage exists
+outside that folder, and nothing else was written since a marker. Pass a
+WAV (16 kHz, mono, 16-bit) and it transcribes it through the installed app
+on the real Metal path and prints the text and real-time factor:
+
+```bash
+scripts/check-mac.sh --mark          # before installing
+scripts/install-mac.sh
+# grant permissions, download a model, dictate once
+scripts/check-mac.sh --wav dictation.wav --expect "ask not"
+```
+
+A fixture WAV is made once on the Mac with
+`say -o dictation.aiff "..." && afconvert -f WAVE -d LEI16@16000 -c 1 dictation.aiff dictation.wav`.
+
+What remains manual, each a yes or no: the Microphone and Accessibility
+prompts appear once and the grants survive an update; the shortcut records
+and the text lands in another app; the menu bar icon changes state and its
+menu works; the start and stop sounds play; Launch on Startup shows up in
+System Settings > General > Login Items and disappears when turned off; the
+overlay shows at the chosen position in light and dark.
+
 ### Checking an uninstall
 
-No automated Mac test covers the install and uninstall cycle; CI only
-builds the app. To check a build yourself, before installing, record a
+To check the install and uninstall cycle, before installing, record a
 reference:
 
 ```bash
@@ -255,8 +283,8 @@ sudo apt install build-essential clang libclang-dev libevdev-dev libasound2-dev 
   librsvg2-dev patchelf cmake xvfb
 ```
 
-CI installs the same list without `vulkan-tools`, `patchelf` and `xvfb`,
-which only the headless run below needs.
+CI installs the same list without `vulkan-tools` and `patchelf`, which only
+a human or an AppImage needs.
 
 ### Full check
 
@@ -265,10 +293,23 @@ ten minutes.
 
 ```bash
 bun install
-bun run build && bun run lint && bunx prettier --check . && bun run test:keyboard
-bun run check:model-languages
+bun run build && bun run check
 (cd src-tauri && cargo build && cargo test)
 ```
+
+`bun run check` runs the lint, formatting, unit tests (`bun test`), the
+decision guards (`scripts/check-decisions.ts`, which asserts what
+`DECISIONS.md` says about the tree and pins fixes that must stay) and the
+model-language check. The UI contract tests (`bun run test:ui`) are separate
+because they start a browser.
+
+CI runs the same in two parallel jobs, the frontend checks and the Rust
+tests, so the wall-clock time stays that of the Rust build. The Rust job
+also runs the debug binary once (`--list-models` under `xvfb`) and fails if
+the regenerated `src/bindings.ts` differs from the committed one, apart from
+the `isLaptop` doc comment below. The Mac job fails if the disk image grows
+past `SIZE_BUDGET_MB` in `ci.yml`; raise it on purpose when a change is worth
+the size.
 
 ### Build size
 
