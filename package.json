@@ -14,7 +14,9 @@
     "format:check": "prettier --check . && cd src-tauri && cargo fmt -- --check",
     "format:frontend": "prettier --write .",
     "format:backend": "cd src-tauri && cargo fmt",
-    "test:keyboard": "bun src/lib/utils/keyboard.test.ts",
+    "test": "bun test",
+    "check": "bun run lint && bun run format:check && bun run test && bun run check:decisions && bun run check:model-languages",
+    "check:decisions": "bun scripts/check-decisions.ts",
     "check:model-languages": "bun scripts/check-model-language-coverage.ts"
   },
   "dependencies": {
@@ -34,6 +36,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.16",
     "@tauri-apps/cli": "^2.11.0",
+    "@types/bun": "^1.4.2",
     "@types/node": "^24.9.1",
     "@types/react": "^18.3.26",
     "@types/react-dom": "^18.3.7",
