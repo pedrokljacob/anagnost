@@ -67,7 +67,8 @@ tokio = "1.43.0"
 vad-rs = { git = "https://github.com/cjpais/vad-rs", default-features = false }
 earshot = "1.2.2"
 enigo = "0.6.1"
-rodio = { git = "https://github.com/cjpais/rodio.git" }
+# Only the two bundled PCM WAVs are played; the fork defaults to every codec.
+rodio = { git = "https://github.com/cjpais/rodio.git", default-features = false, features = ["playback", "wav"] }
 reqwest = { version = "0.12", features = ["json", "stream", "gzip", "brotli", "deflate"] }
 futures-util = "0.3"
 rustfft = "6.4.0"
@@ -77,9 +78,11 @@ regex = "1"
 # Text-based language ID (filler-word removal fallback); isolang bridges the
 # ISO 639-1 codes in model metadata to whatlang's 639-3 codes.
 whatlang = "0.16"
-isolang = "2"
+isolang = { version = "2", default-features = false } # code lookups only, no name table
 chrono = "0.4"
-rusqlite = { version = "0.37", features = ["bundled"] }
+# The macOS SQLite (3.39 on macOS 13) covers the history schema; Linux
+# bundles one in the target table below.
+rusqlite = "0.37"
 sha2 = "0.10"
 # Every model runs through transcribe-cpp (GGUF/ggml, native backends).
 # Per-platform backend features are added in the target tables.
@@ -90,7 +93,9 @@ specta = "=2.0.0-rc.22"
 specta-typescript = "0.0.9"
 tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
 tauri-plugin-dialog = "2.6"
-hf-hub = { git = "https://github.com/cjpais/hf-hub", branch = "cancellable-downloads", features = [
+# Only the tokio API is used; the defaults add a blocking ureq client with
+# its own TLS stack.
+hf-hub = { git = "https://github.com/cjpais/hf-hub", branch = "cancellable-downloads", default-features = false, features = [
   "tokio",
 ] }
 
@@ -109,6 +114,7 @@ objc2-app-kit = "0.3"
 objc2-service-management = "0.3.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
+rusqlite = { version = "0.37", features = ["bundled"] }
 transcribe-cpp = { version = "0.2.4", default-features = false, features = [
   "dynamic-backends",
   "vulkan",
