@@ -12,6 +12,10 @@
 //
 // Light and dark follow the browser's color scheme (prefers-color-scheme).
 //
+// Settings changed in the page are kept in sessionStorage per URL, so a
+// reload shows them again; a new tab or another scenario starts fresh.
+// Models and history always start fresh.
+//
 // The model-picker onboarding step is reached through Debug > Onboarding
 // preview: reaching it through the real flow needs granted permissions on a
 // first run, which currently loops (see BACKLOG.md).
@@ -36,12 +40,20 @@ const params = new URLSearchParams(window.location.search);
 const param = (name: string) => params.get(name);
 const isOverlay = window.location.pathname.includes("/overlay/");
 
-const settings: AppSettings = {
-  ...defaultSettings(),
-  onboarding_completed: param("onboarding") === null,
-  debug_mode: param("debug") !== "0",
-  post_process_enabled: param("postprocess") !== "0",
-};
+// Per-tab persistence of settings across reloads (see the header).
+const storageKey = `mock-settings:${window.location.search}`;
+const storedSettings = sessionStorage.getItem(storageKey);
+const settings: AppSettings = storedSettings
+  ? { ...defaultSettings(), ...JSON.parse(storedSettings) }
+  : {
+      ...defaultSettings(),
+      onboarding_completed: param("onboarding") === null,
+      debug_mode: param("debug") !== "0",
+      post_process_enabled: param("postprocess") !== "0",
+    };
+window.addEventListener("pagehide", () => {
+  sessionStorage.setItem(storageKey, JSON.stringify(settings));
+});
 const position = param("position");
 if (position === "top" || position === "bottom") {
   settings.overlay_position = position;
@@ -58,7 +70,7 @@ if (param("models") !== "none") {
       partial_size: Math.round(third.size_mb * 0.4),
     });
   }
-  settings.selected_model = first.id;
+  if (!storedSettings) settings.selected_model = first.id;
 }
 
 const permissionsGranted =
@@ -78,19 +90,43 @@ window.__TAURI_OS_PLUGIN_INTERNALS__ = {
   exe_extension: "",
 };
 
-// `change_<key>_setting` commands carry one value; store it so a later
-// `get_app_settings` reflects the change.
+// `change_<key>_setting`, `set_<key>` and `update_<key>` commands carry one
+// value; store it so a later `get_app_settings` reflects the change. Keys
+// whose command name differs from the settings field are listed here.
+const SETTING_ALIASES: Record<string, keyof AppSettings> = {
+  microphone_mode: "always_on_microphone",
+  post_process_provider: "post_process_provider_id",
+  post_process_selected_prompt: "post_process_selected_prompt_id",
+};
+// Device pickers send "default" for the system default, stored as null.
+const DEVICE_KEYS: (keyof AppSettings)[] = [
+  "selected_microphone",
+  "selected_output_device",
+  "clamshell_microphone",
+];
 const applySettingChange = (cmd: string, args: Record<string, unknown>) => {
-  const match = cmd.match(/^change_(.+?)(_setting)?$/);
+  const match = cmd.match(/^(?:change|set|update)_(.+?)(_setting)?$/);
   if (!match) return false;
   const values = Object.values(args ?? {});
   if (values.length !== 1) return true;
-  const key = match[1] as keyof AppSettings;
-  const target = (
-    key in settings ? key : `${key}_enabled`
-  ) as keyof AppSettings;
-  (settings as Record<string, unknown>)[target] = values[0];
+  const name = match[1];
+  const key = (SETTING_ALIASES[name] ??
+    (name in settings ? name : `${name}_enabled`)) as keyof AppSettings;
+  if (!(key in settings)) return true;
+  const value =
+    DEVICE_KEYS.includes(key) && values[0] === "default" ? null : values[0];
+  (settings as Record<string, unknown>)[key] = value;
   return true;
+};
+
+// Like shortcut/mod.rs: store the binding and answer with a BindingResponse.
+const changeBinding = (id: string, binding: string) => {
+  const stored = settings.bindings?.[id];
+  if (!stored) {
+    return { success: false, binding: null, error: `Unknown binding: ${id}` };
+  }
+  stored.current_binding = binding;
+  return { success: true, binding: structuredClone(stored), error: null };
 };
 
 // Like model.rs: progress events while the bytes arrive, then
@@ -146,6 +182,20 @@ mockIPC(
       case "set_active_model":
         settings.selected_model = args.modelId as string;
         return null;
+      case "delete_model": {
+        const model = models.find((m) => m.id === args.modelId);
+        if (model) Object.assign(model, { is_downloaded: false });
+        if (settings.selected_model === args.modelId) {
+          settings.selected_model = "";
+        }
+        return null;
+      }
+      case "change_binding":
+        return changeBinding(args.id as string, args.binding as string);
+      case "reset_binding": {
+        const stored = settings.bindings?.[args.id as string];
+        return changeBinding(args.id as string, stored?.default_binding ?? "");
+      }
       case "download_model":
         return downloadModel(args.modelId as string);
       case "cancel_download":
