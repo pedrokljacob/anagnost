@@ -129,25 +129,18 @@ impl Default for TrayState {
 pub enum AppTheme {
     Dark,
     Light,
-    Colored, // Pink/colored theme for Linux
 }
 
-/// Gets the current app theme, with Linux defaulting to Colored theme
+/// Maps the system theme of the main window to the tray icon set.
 pub fn get_current_theme(app: &AppHandle) -> AppTheme {
-    if cfg!(target_os = "linux") {
-        // On Linux, always use the colored theme
-        AppTheme::Colored
-    } else {
-        // Elsewhere, map the system theme to our app theme
-        if let Some(main_window) = app.get_webview_window("main") {
-            match main_window.theme().unwrap_or(Theme::Dark) {
-                Theme::Light => AppTheme::Light,
-                Theme::Dark => AppTheme::Dark,
-                _ => AppTheme::Dark, // Default fallback
-            }
-        } else {
-            AppTheme::Dark
+    if let Some(main_window) = app.get_webview_window("main") {
+        match main_window.theme().unwrap_or(Theme::Dark) {
+            Theme::Light => AppTheme::Light,
+            Theme::Dark => AppTheme::Dark,
+            _ => AppTheme::Dark, // Default fallback
         }
+    } else {
+        AppTheme::Dark
     }
 }
 
@@ -161,9 +154,6 @@ pub fn get_icon_path(theme: AppTheme, state: TrayIconState, warning: bool) -> &'
         return match theme {
             AppTheme::Dark => "resources/tray_idle_warning.png",
             AppTheme::Light => "resources/tray_idle_warning_dark.png",
-            // Linux never sets the warning flag (Secure Input is macOS-only),
-            // but fall back to the normal icon just in case.
-            AppTheme::Colored => "resources/idle.png",
         };
     }
     match (theme, state) {
@@ -175,10 +165,6 @@ pub fn get_icon_path(theme: AppTheme, state: TrayIconState, warning: bool) -> &'
         (AppTheme::Light, TrayIconState::Idle) => "resources/tray_idle_dark.png",
         (AppTheme::Light, TrayIconState::Recording) => "resources/tray_recording_dark.png",
         (AppTheme::Light, TrayIconState::Transcribing) => "resources/tray_transcribing_dark.png",
-        // Colored theme uses pink icons (for Linux)
-        (AppTheme::Colored, TrayIconState::Idle) => "resources/idle.png",
-        (AppTheme::Colored, TrayIconState::Recording) => "resources/recording.png",
-        (AppTheme::Colored, TrayIconState::Transcribing) => "resources/transcribing.png",
     }
 }
 
@@ -363,11 +349,9 @@ fn apply_on_main(app: &AppHandle) {
             Ok((menu, tooltip)) => match tray.set_menu(Some(menu)) {
                 Ok(()) => {
                     menu_ok = true;
-                    // Best-effort: logged, not retried. The tooltip is cosmetic
-                    // and can only fail on Windows, where a failing
-                    // Shell_NotifyIcon call means the icon is failing too.
-                    // Gating `menu_ok` on it would re-run the full menu
-                    // rebuild on every sync for the cheapest mutation.
+                    // Best-effort: logged, not retried. The tooltip is
+                    // cosmetic; gating `menu_ok` on it would re-run the full
+                    // menu rebuild on every sync for the cheapest mutation.
                     if let Err(err) = tray.set_tooltip(Some(tooltip)) {
                         error!("Failed to set tray tooltip: {err}");
                     }
@@ -444,11 +428,7 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
         None
     };
 
-    // Platform-specific accelerators
-    #[cfg(target_os = "macos")]
     let (settings_accelerator, quit_accelerator) = (Some("Cmd+,"), Some("Cmd+Q"));
-    #[cfg(not(target_os = "macos"))]
-    let (settings_accelerator, quit_accelerator) = (Some("Ctrl+,"), Some("Ctrl+Q"));
 
     // Create common menu items
     let version_label = version_label();

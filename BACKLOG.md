@@ -10,7 +10,7 @@ or decided (decisions go to `DECISIONS.md`).
 
 ## Decide later
 
-- Artwork: replace Handy's app icons (`src-tauri/icons/`), tray icons (`resources/idle.png`, `recording.png`, `transcribing.png`, `tray_*.png`) and logo components (`AppIcon.tsx`, `AppTextLogo.tsx`, shown in the sidebar and onboarding).
+- Artwork: replace Handy's app icons (`src-tauri/icons/`), tray icons (`resources/tray_*.png`) and logo components (`AppIcon.tsx`, `AppTextLogo.tsx`, shown in the sidebar and onboarding).
 - `tao` patch (cjpais fork): keep or move to crates.io `tao` (needs a Mac build).
 - Model hosting: keep using Handy's mirror and Hugging Face org, or self-host.
 - Trim the model catalog to the families actually used.
