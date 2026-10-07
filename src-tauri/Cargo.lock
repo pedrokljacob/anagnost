@@ -106,7 +106,6 @@ dependencies = [
  "hf-hub",
  "hound",
  "isolang",
- "libc",
  "log",
  "natural",
  "objc2",

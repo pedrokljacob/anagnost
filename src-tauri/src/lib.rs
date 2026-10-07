@@ -12,7 +12,6 @@ mod helpers;
 mod input;
 mod llm_client;
 mod managers;
-mod memory;
 mod overlay;
 mod paste_tx;
 mod paths;
@@ -550,11 +549,6 @@ pub fn run(cli_args: CliArgs) {
     } else {
         std::env::set_var("GGML_METAL_NO_RESIDENCY", "1");
     }
-
-    // Pin glibc's dynamic mmap threshold before the first large allocation,
-    // so per-dictation transient buffers are returned to the OS on free
-    // instead of accumulating in malloc arenas (#1792). No-op off Linux/glibc.
-    memory::init_allocator();
 
     // Parse console logging directives from RUST_LOG, falling back to info-level logging
     // when the variable is unset
