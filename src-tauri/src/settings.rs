@@ -1350,6 +1350,41 @@ mod tests {
     }
 
     #[test]
+    fn default_settings_keep_post_processing_off() {
+        let settings = get_default_settings();
+        assert!(!settings.post_process_enabled);
+    }
+
+    #[test]
+    fn default_bindings_use_option_space_and_escape() {
+        let settings = get_default_settings();
+        let binding = |id: &str| {
+            let b = &settings.bindings[id];
+            assert_eq!(b.current_binding, b.default_binding);
+            b.default_binding.as_str()
+        };
+        assert_eq!(settings.bindings.len(), 3);
+        assert_eq!(binding("transcribe"), "option+space");
+        assert_eq!(
+            binding("transcribe_with_post_process"),
+            "option+shift+space"
+        );
+        assert_eq!(binding("cancel"), "escape");
+    }
+
+    #[test]
+    fn default_paste_method_is_ctrl_v() {
+        let settings = get_default_settings();
+        assert_eq!(settings.paste_method, PasteMethod::CtrlV);
+    }
+
+    #[test]
+    fn default_settings_enable_vad() {
+        let settings = get_default_settings();
+        assert!(settings.vad_enabled);
+    }
+
+    #[test]
     fn default_overlay_style_is_live() {
         let settings = get_default_settings();
         assert_eq!(settings.overlay_style, OverlayStyle::Live);
