@@ -7,11 +7,11 @@ Linux is only a test bench for the Rust crate and the frontend (see
 ## Install the latest CI build
 
 `.github/workflows/ci.yml` runs the [Linux test bench](#linux-test-bench)
-checks on every push and on pull requests. On `main`, once they pass, it
-builds the app on a GitHub Apple Silicon runner and publishes it as the
-rolling `latest` pre-release. No local build is needed. A push that only
-changes documentation skips the Mac build, so `latest` names the last
-commit that changed the app.
+checks on every push and on pull requests. On `main` it also builds the app
+on a GitHub Apple Silicon runner at the same time and, once all three jobs
+pass, publishes it as the rolling `latest` pre-release. No local build is
+needed. A push that only changes documentation skips the Mac build, so
+`latest` names the last commit that changed the app.
 
 Install or update it on the Mac (Apple Silicon, macOS 13 or later, from an
 administrator account) with the tools macOS ships with:
@@ -321,7 +321,8 @@ model-language check. The UI contract tests (`bun run test:ui`) are separate
 because they start a browser.
 
 CI runs the same in two parallel jobs, the frontend checks and the Rust
-tests, so the wall-clock time stays that of the Rust build. The Rust job
+tests, with the Mac build alongside on `main`, so the wall-clock time is
+that of the slowest job rather than their sum. The Rust job
 also runs the debug binary once (`--list-models` under `xvfb`) and fails if
 the regenerated `src/bindings.ts` differs from the committed one, apart from
 the `isLaptop` doc comment below. The Mac job fails if the disk image grows
@@ -332,7 +333,10 @@ the size.
 
 The dev profile (`src-tauri/Cargo.toml`) keeps line tables for the crate
 and no debuginfo for dependencies or build scripts, and the crate builds
-as `rlib` only. A `cargo build && cargo test` cycle then takes about
+as `rlib` only. The release profile uses thin LTO with the default codegen
+units: fat LTO with one unit kept the Mac build on a single core for six
+minutes, and the transcription hot paths are in ggml and ONNX Runtime,
+which Rust LTO never reaches. A `cargo build && cargo test` cycle then takes about
 3.7 GB under `src-tauri/target/`, down from 14.8 GB with the defaults,
 and `cargo build` and `cargo test` no longer recompile each other.
 Panics and backtraces still show file and line. For a session that needs

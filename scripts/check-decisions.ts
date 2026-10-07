@@ -265,10 +265,15 @@ expect(
       "ci.yml: ORT_CACHE_DIR must stay inside target/ so cached builds can link ONNX Runtime",
     );
   }
-  const dmg = ci.indexOf('upload latest "$RUNNER_TEMP/$ASSET" --clobber');
-  const txt = ci.indexOf('upload latest "$RUNNER_TEMP/latest.txt" --clobber');
+  const dmg = ci.indexOf('upload latest "release/$ASSET" --clobber');
+  const txt = ci.indexOf('upload latest "release/latest.txt" --clobber');
   if (dmg < 0 || txt < 0 || txt < dmg)
     fail("ci.yml: latest.txt must be uploaded with --clobber after the dmg");
+  // The Mac build runs alongside the Linux jobs; only the publish waits.
+  if (/name: Mac build\n\s*needs:/.test(ci))
+    fail("ci.yml: the Mac build must not wait for the Linux jobs");
+  if (!/needs: \[checks, test, build\]/.test(ci))
+    fail("ci.yml: publishing must wait for the Linux checks and the Mac build");
 }
 
 // Translation keys: every key the code uses exists, and every key in the
