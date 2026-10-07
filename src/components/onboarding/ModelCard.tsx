@@ -39,11 +39,6 @@ const getLanguageDisplayText = (
   });
 };
 
-// Legacy = a blob (Url-sourced) .bin/ONNX model, kept runnable but no longer the
-// advertised download (catalog GGUFs supersede it).
-export const isLegacySource = (model: ModelInfo): boolean =>
-  typeof model.source === "object" && "Url" in model.source;
-
 // Extract a GGUF quantization label from a filename, if present (e.g. "Q8_0").
 const getQuantLabel = (filename: string): string | null => {
   const match = filename.match(
@@ -56,7 +51,6 @@ export type ModelCardStatus =
   | "downloadable"
   | "downloading"
   | "verifying"
-  | "extracting"
   | "switching"
   | "active"
   | "available";
@@ -181,9 +175,6 @@ const ModelCard: React.FC<ModelCardProps> = ({
             {model.is_custom && (
               <Badge variant="secondary">{t("modelSelector.custom")}</Badge>
             )}
-            {isLegacySource(model) && (
-              <Badge variant="secondary">{t("modelSelector.legacy")}</Badge>
-            )}
             {status === "switching" && (
               <Badge variant="secondary">
                 <Loader2 className="w-3 h-3 mr-1 animate-spin" />
@@ -278,7 +269,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
         )}
       </div>
 
-      {/* Download/extract progress */}
+      {/* Download progress */}
       {status === "downloading" && downloadProgress !== undefined && (
         <div className="w-full mt-3">
           <div className="w-full h-1.5 bg-mid-gray/20 rounded-full overflow-hidden">
@@ -326,16 +317,6 @@ const ModelCard: React.FC<ModelCardProps> = ({
           </div>
           <p className="text-xs text-text/50 mt-1">
             {t("modelSelector.verifyingGeneric")}
-          </p>
-        </div>
-      )}
-      {status === "extracting" && (
-        <div className="w-full mt-3">
-          <div className="w-full h-1.5 bg-mid-gray/20 rounded-full overflow-hidden">
-            <div className="h-full bg-logo-primary rounded-full animate-pulse w-full" />
-          </div>
-          <p className="text-xs text-text/50 mt-1">
-            {t("modelSelector.extractingGeneric")}
           </p>
         </div>
       )}

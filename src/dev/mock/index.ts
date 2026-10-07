@@ -157,7 +157,7 @@ mockIPC(
       case "get_microphone_channels":
         return 1;
       case "get_available_accelerators":
-        return { transcribe: ["auto", "cpu", "gpu"], ort: [], gpu_devices: [] };
+        return { transcribe: ["auto", "cpu", "gpu"], gpu_devices: [] };
       case "get_history_entries":
         return { entries: structuredClone(history), has_more: false };
       case "toggle_history_entry_saved": {

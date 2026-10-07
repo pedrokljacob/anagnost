@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { ChevronDown } from "lucide-react";
 import type { ModelInfo } from "@/bindings";
 import type { ModelCardStatus } from "./ModelCard";
-import ModelCard, { isLegacySource } from "./ModelCard";
+import ModelCard from "./ModelCard";
 import AppTextLogo from "../icons/AppTextLogo";
 import { useModelStore } from "../../stores/modelStore";
 
@@ -24,7 +24,6 @@ const Onboarding: React.FC<OnboardingProps> = ({
     selectModel,
     downloadingModels,
     verifyingModels,
-    extractingModels,
     downloadProgress,
     downloadStats,
     cancelDownload,
@@ -35,15 +34,12 @@ const Onboarding: React.FC<OnboardingProps> = ({
 
   const isBusy = selectedModelId !== null;
 
-  // Curate the download list: legacy (.bin/ONNX) downloads are deprecated and
-  // never shown here (they still appear in the compatible section if already on
-  // disk). The catalog arrives rank-sorted, so the first two recommended models
-  // are the featured picks — currently Parakeet Unified (English) and Nemotron
-  // Streaming (multilingual). Everything else hides behind "Show all".
+  // Curate the download list. The catalog arrives rank-sorted, so the first
+  // two recommended models are the featured picks — currently Parakeet Unified
+  // (English) and Nemotron Streaming (multilingual). Everything else hides
+  // behind "Show all".
   const { downloadable, topPicks, otherRecommended, rest } = useMemo(() => {
-    const downloadable = models.filter(
-      (m: ModelInfo) => !m.is_downloaded && !isLegacySource(m),
-    );
+    const downloadable = models.filter((m: ModelInfo) => !m.is_downloaded);
     const recommended = downloadable.filter((m: ModelInfo) => m.is_recommended);
     // `models` arrives in editorial rank order (the backend sorts by rank_of,
     // then accuracy), so keep that order here: ranked-but-not-recommended models
@@ -62,7 +58,7 @@ const Onboarding: React.FC<OnboardingProps> = ({
   // there is no curated subset to collapse, so just show the full list.
   const showRest = showAll || !hasRecommended;
 
-  // Watch for the selected model to finish downloading + verifying + extracting
+  // Watch for the selected model to finish downloading + verifying
   useEffect(() => {
     // Debug previews are inert: never switch the user's active model. Guarded
     // here as well as in the handlers because this is where the backend call
@@ -77,13 +73,11 @@ const Onboarding: React.FC<OnboardingProps> = ({
     const model = models.find((m) => m.id === selectedModelId);
     const stillDownloading = selectedModelId in downloadingModels;
     const stillVerifying = selectedModelId in verifyingModels;
-    const stillExtracting = selectedModelId in extractingModels;
 
     if (
       model?.is_downloaded &&
       !stillDownloading &&
       !stillVerifying &&
-      !stillExtracting &&
       !hasStartedSelection.current
     ) {
       hasStartedSelection.current = true;
@@ -104,7 +98,6 @@ const Onboarding: React.FC<OnboardingProps> = ({
     models,
     downloadingModels,
     verifyingModels,
-    extractingModels,
     selectModel,
     onModelSelected,
     preview,
@@ -140,7 +133,6 @@ const Onboarding: React.FC<OnboardingProps> = ({
   };
 
   const getModelStatus = (modelId: string): ModelCardStatus => {
-    if (modelId in extractingModels) return "extracting";
     if (modelId in verifyingModels) return "verifying";
     if (modelId in downloadingModels) return "downloading";
     return "downloadable";

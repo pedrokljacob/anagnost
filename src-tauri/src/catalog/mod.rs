@@ -7,8 +7,8 @@
 //! model list with zero network access.
 //!
 //! Each entry is normalised into a [`ModelDescriptor`] — the same source-agnostic
-//! shape every other producer (HF discovery, on-disk scans, the legacy table)
-//! yields — so the catalog is "just another producer". Its explicit `capabilities`
+//! shape every other producer (HF discovery, on-disk scans) yields — so the
+//! catalog is "just another producer". Its explicit `capabilities`
 //! map becomes a [`CapabilityProbe`] with confident `Some(..)` values; the runtime
 //! `GgufHeaderProber` is the same shape with `None` where a header omits a key,
 //! which is why the two are interchangeable (the catalog is a baked probe).
@@ -18,9 +18,7 @@ use std::collections::HashMap;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
-use crate::managers::model::{
-    default_quant_file, EngineType, ModelDescriptor, ModelSource, QuantFile,
-};
+use crate::managers::model::{default_quant_file, ModelDescriptor, ModelSource, QuantFile};
 use crate::managers::model_capabilities::{CapabilityProbe, Compatibility};
 
 #[derive(Deserialize)]
@@ -90,7 +88,6 @@ impl From<&CatalogModel> for ModelDescriptor {
             },
             name: m.name.clone(),
             description: m.description.clone(),
-            engine_type: EngineType::TranscribeCpp,
             caps: CapabilityProbe {
                 verdict: Compatibility::Compatible, // curated org models we ship support for
                 display_name: None,

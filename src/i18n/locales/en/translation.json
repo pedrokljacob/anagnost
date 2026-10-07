@@ -121,12 +121,10 @@
   },
   "modelSelector": {
     "custom": "Custom",
-    "legacy": "Legacy",
     "streaming": "Streaming",
     "active": "Active",
     "switching": "Switching...",
     "verifyingGeneric": "Verifying...",
-    "extractingGeneric": "Extracting...",
     "downloading": "Downloading {{percentage}}%",
     "deleteModel": "Delete {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -260,11 +258,7 @@
       "acceleration": {
         "transcribe": {
           "title": "transcribe.cpp Acceleration",
-          "description": "Hardware acceleration for transcribe.cpp (Whisper-family) models. Auto uses the GPU (Metal) if available."
-        },
-        "ort": {
-          "title": "ONNX Acceleration",
-          "description": "Hardware acceleration for ONNX models (Parakeet, Canary, Moonshine, etc.)."
+          "description": "Hardware acceleration for transcription models. Auto uses the GPU (Metal) if available."
         },
         "gpuDevice": {
           "auto": "Auto"

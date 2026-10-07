@@ -3,10 +3,9 @@ use crate::audio_toolkit::{
     remove_filler_words, OutputLanguageEvidence,
 };
 use crate::managers::audio::AudioRecordingManager;
-use crate::managers::model::{EngineType, ModelManager};
+use crate::managers::model::ModelManager;
 use crate::settings::{
-    get_settings, AppSettings, ModelUnloadTimeout, OrtAcceleratorSetting,
-    TranscribeAcceleratorSetting,
+    get_settings, AppSettings, ModelUnloadTimeout, TranscribeAcceleratorSetting,
 };
 use anyhow::Result;
 use log::{debug, error, info, warn};
@@ -22,18 +21,6 @@ use tauri_specta::Event;
 use transcribe_cpp::{
     Backend, Feature, Model, ModelOptions, RunExtension, RunOptions, Session, StreamOptions,
     WhisperRunOptions,
-};
-use transcribe_rs::{
-    onnx::{
-        canary::CanaryModel,
-        cohere::CohereModel,
-        gigaam::GigaAMModel,
-        moonshine::{MoonshineModel, MoonshineVariant, StreamingModel},
-        parakeet::{ParakeetModel, ParakeetParams, TimestampGranularity},
-        sense_voice::{SenseVoiceModel, SenseVoiceParams},
-        Quantization,
-    },
-    SpeechModel, TranscribeOptions,
 };
 
 const STREAM_PERF_LOG_INTERVAL: Duration = Duration::from_secs(5);
@@ -176,19 +163,10 @@ impl StreamRouter {
     }
 }
 
-enum LoadedEngine {
-    /// Whisper-family models (whisper, breeze-asr, custom .bin/.gguf) via
-    /// transcribe-cpp. Holds the live `Session`, which keeps its `Model` alive
-    /// internally, so repeated dictation reuses the session without reloading.
-    TranscribeCpp(Session),
-    Parakeet(ParakeetModel),
-    Moonshine(MoonshineModel),
-    MoonshineStreaming(StreamingModel),
-    SenseVoice(SenseVoiceModel),
-    GigaAM(GigaAMModel),
-    Canary(CanaryModel),
-    Cohere(CohereModel),
-}
+/// A model loaded through transcribe-cpp. Holds the live `Session`, which
+/// keeps its `Model` alive internally, so repeated dictation reuses the
+/// session without reloading.
+struct LoadedEngine(Session);
 
 /// RAII guard that clears the `is_loading` flag and notifies waiters on drop.
 /// Ensures the loading flag is always reset, even on early returns or panics.
@@ -555,156 +533,83 @@ impl TranscriptionManager {
 
         // Create appropriate engine based on model type
 
-        let loaded_engine = match model_info.engine_type {
-            EngineType::TranscribeCpp => {
-                // The whisper backend is chosen at load time (transcribe-cpp has
-                // no runtime global). With an explicit `device_index` (the
-                // --device-index flag) hard-select that registered device;
-                // otherwise re-read the persisted accelerator preference (so an
-                // accelerator change marked for reload takes effect here).
-                let (backend, device) = match device_index {
-                    Some(index) => resolve_device_index(index).inspect_err(|e| {
-                        emit_loading_failed(&e.to_string());
-                    })?,
-                    None => {
-                        let settings = get_settings(&self.app_handle);
-                        let accelerator = settings.transcribe_accelerator;
-                        let device = resolve_gpu_device(
-                            accelerator,
-                            settings.transcribe_gpu_device.as_deref(),
-                        );
-                        // Backend::Auto accepts an exact GPU device. Without a
-                        // valid exact device, backend selection handles the
-                        // retired generic GPU state and host CPU guard.
-                        let backend = if device.is_some() {
-                            Backend::Auto
-                        } else {
-                            select_transcribe_backend(accelerator)
-                        };
-                        (backend, device)
-                    }
-                };
-                let requested_device = device
-                    .as_ref()
-                    .map(transcribe_device_label)
-                    .unwrap_or_else(|| "automatic".to_string());
-                let model_options = ModelOptions { backend, device };
-                let model = Model::load_with(&model_path, &model_options).map_err(|e| {
-                    let error_msg = format!("Failed to load whisper model {}: {}", model_id, e);
-                    emit_loading_failed(&error_msg);
-                    anyhow::anyhow!(error_msg)
-                })?;
-                // The bound backend may differ from the request (e.g. CPU
-                // fallback under Auto); log what actually loaded.
-                let bound_backend = model.backend();
-                let session = model.session().map_err(|e| {
-                    let error_msg = format!(
-                        "Failed to create session for whisper model {}: {}",
-                        model_id, e
-                    );
-                    emit_loading_failed(&error_msg);
-                    anyhow::anyhow!(error_msg)
-                })?;
-                // Reconcile the registry's advertised capabilities with the
-                // loaded model's real ones (GGUF metadata) so badges/gating
-                // reflect runtime truth, not the pre-download probe. The
-                // load-completed event below triggers the frontend refresh.
-                let caps = session.model().capabilities();
-                self.model_manager.set_runtime_capabilities(
-                    model_id,
-                    caps.supports_streaming,
-                    caps.supports_translate,
-                    caps.supports_language_detect,
-                    caps.languages.clone(),
+        let loaded_engine = {
+            // The whisper backend is chosen at load time (transcribe-cpp has
+            // no runtime global). With an explicit `device_index` (the
+            // --device-index flag) hard-select that registered device;
+            // otherwise re-read the persisted accelerator preference (so an
+            // accelerator change marked for reload takes effect here).
+            let (backend, device) = match device_index {
+                Some(index) => resolve_device_index(index).inspect_err(|e| {
+                    emit_loading_failed(&e.to_string());
+                })?,
+                None => {
+                    let settings = get_settings(&self.app_handle);
+                    let accelerator = settings.transcribe_accelerator;
+                    let device =
+                        resolve_gpu_device(accelerator, settings.transcribe_gpu_device.as_deref());
+                    // Backend::Auto accepts an exact GPU device. Without a
+                    // valid exact device, backend selection handles the
+                    // retired generic GPU state and host CPU guard.
+                    let backend = if device.is_some() {
+                        Backend::Auto
+                    } else {
+                        select_transcribe_backend(accelerator)
+                    };
+                    (backend, device)
+                }
+            };
+            let requested_device = device
+                .as_ref()
+                .map(transcribe_device_label)
+                .unwrap_or_else(|| "automatic".to_string());
+            let model_options = ModelOptions { backend, device };
+            let model = Model::load_with(&model_path, &model_options).map_err(|e| {
+                let error_msg = format!("Failed to load whisper model {}: {}", model_id, e);
+                emit_loading_failed(&error_msg);
+                anyhow::anyhow!(error_msg)
+            })?;
+            // The bound backend may differ from the request (e.g. CPU
+            // fallback under Auto); log what actually loaded.
+            let bound_backend = model.backend();
+            let session = model.session().map_err(|e| {
+                let error_msg = format!(
+                    "Failed to create session for whisper model {}: {}",
+                    model_id, e
                 );
-                let bound_device = model
-                    .device()
-                    .map(|device| transcribe_device_label(&device))
-                    .unwrap_or_else(|_| "unknown".to_string());
-                info!(
-                    "Loaded whisper model '{}' (requested {:?}, requested device '{}', \
+                emit_loading_failed(&error_msg);
+                anyhow::anyhow!(error_msg)
+            })?;
+            // Reconcile the registry's advertised capabilities with the
+            // loaded model's real ones (GGUF metadata) so badges/gating
+            // reflect runtime truth, not the pre-download probe. The
+            // load-completed event below triggers the frontend refresh.
+            let caps = session.model().capabilities();
+            self.model_manager.set_runtime_capabilities(
+                model_id,
+                caps.supports_streaming,
+                caps.supports_translate,
+                caps.supports_language_detect,
+                caps.languages.clone(),
+            );
+            let bound_device = model
+                .device()
+                .map(|device| transcribe_device_label(&device))
+                .unwrap_or_else(|_| "unknown".to_string());
+            info!(
+                "Loaded whisper model '{}' (requested {:?}, requested device '{}', \
                      bound backend '{}', bound device '{}', supports_streaming={}, \
                      supports_translate={}, supports_language_detect={})",
-                    model_id,
-                    backend,
-                    requested_device,
-                    bound_backend,
-                    bound_device,
-                    caps.supports_streaming,
-                    caps.supports_translate,
-                    caps.supports_language_detect
-                );
-                LoadedEngine::TranscribeCpp(session)
-            }
-            EngineType::Parakeet => {
-                let engine =
-                    ParakeetModel::load(&model_path, &Quantization::Int8).map_err(|e| {
-                        let error_msg =
-                            format!("Failed to load parakeet model {}: {}", model_id, e);
-                        emit_loading_failed(&error_msg);
-                        anyhow::anyhow!(error_msg)
-                    })?;
-                LoadedEngine::Parakeet(engine)
-            }
-            EngineType::Moonshine => {
-                let engine = MoonshineModel::load(
-                    &model_path,
-                    MoonshineVariant::Base,
-                    &Quantization::default(),
-                )
-                .map_err(|e| {
-                    let error_msg = format!("Failed to load moonshine model {}: {}", model_id, e);
-                    emit_loading_failed(&error_msg);
-                    anyhow::anyhow!(error_msg)
-                })?;
-                LoadedEngine::Moonshine(engine)
-            }
-            EngineType::MoonshineStreaming => {
-                let engine = StreamingModel::load(&model_path, 0, &Quantization::default())
-                    .map_err(|e| {
-                        let error_msg = format!(
-                            "Failed to load moonshine streaming model {}: {}",
-                            model_id, e
-                        );
-                        emit_loading_failed(&error_msg);
-                        anyhow::anyhow!(error_msg)
-                    })?;
-                LoadedEngine::MoonshineStreaming(engine)
-            }
-            EngineType::SenseVoice => {
-                let engine =
-                    SenseVoiceModel::load(&model_path, &Quantization::Int8).map_err(|e| {
-                        let error_msg =
-                            format!("Failed to load SenseVoice model {}: {}", model_id, e);
-                        emit_loading_failed(&error_msg);
-                        anyhow::anyhow!(error_msg)
-                    })?;
-                LoadedEngine::SenseVoice(engine)
-            }
-            EngineType::GigaAM => {
-                let engine = GigaAMModel::load(&model_path, &Quantization::Int8).map_err(|e| {
-                    let error_msg = format!("Failed to load gigaam model {}: {}", model_id, e);
-                    emit_loading_failed(&error_msg);
-                    anyhow::anyhow!(error_msg)
-                })?;
-                LoadedEngine::GigaAM(engine)
-            }
-            EngineType::Canary => {
-                let engine = CanaryModel::load(&model_path, &Quantization::Int8).map_err(|e| {
-                    let error_msg = format!("Failed to load canary model {}: {}", model_id, e);
-                    emit_loading_failed(&error_msg);
-                    anyhow::anyhow!(error_msg)
-                })?;
-                LoadedEngine::Canary(engine)
-            }
-            EngineType::Cohere => {
-                let engine = CohereModel::load(&model_path, &Quantization::Int8).map_err(|e| {
-                    let error_msg = format!("Failed to load cohere model {}: {}", model_id, e);
-                    emit_loading_failed(&error_msg);
-                    anyhow::anyhow!(error_msg)
-                })?;
-                LoadedEngine::Cohere(engine)
-            }
+                model_id,
+                backend,
+                requested_device,
+                bound_backend,
+                bound_device,
+                caps.supports_streaming,
+                caps.supports_translate,
+                caps.supports_language_detect
+            );
+            LoadedEngine(session)
         };
 
         // Update the current engine and model ID
@@ -777,17 +682,11 @@ impl TranscriptionManager {
 
     /// The compute backend the currently-loaded engine is bound to, for
     /// diagnostics (e.g. confirming `--device-index` actually bound a GPU rather
-    /// than falling back to CPU/auto). transcribe-cpp (whisper-family) reports
-    /// its real backend string; ONNX engines report "onnx"; `None` when no
-    /// model is loaded.
+    /// than falling back to CPU/auto). `None` when no model is loaded.
     pub fn current_backend(&self) -> Option<String> {
-        match self.lock_engine().as_ref() {
-            Some(LoadedEngine::TranscribeCpp(session)) => {
-                Some(session.model().backend().to_string())
-            }
-            Some(_) => Some("onnx".to_string()),
-            None => None,
-        }
+        self.lock_engine()
+            .as_ref()
+            .map(|LoadedEngine(session)| session.model().backend().to_string())
     }
 
     /// Whether a live streaming run is currently in flight.
@@ -885,33 +784,23 @@ impl TranscriptionManager {
             }
         };
 
-        // Only transcribe-cpp models expose streaming; ONNX engines fall back to
-        // batch. The loaded session (not the ModelManager copy) is the source of
+        // The loaded session (not the ModelManager copy) is the source of
         // truth for run-path capabilities.
-        let (supports_streaming, languages) = match &engine {
-            LoadedEngine::TranscribeCpp(session) => {
-                let model = session.model();
-                let caps = model.capabilities();
-                info!(
-                    "Live preview: model '{}' arch='{}' variant='{}' supports_streaming={} \
+        let (supports_streaming, languages) = {
+            let LoadedEngine(session) = &engine;
+            let model = session.model();
+            let caps = model.capabilities();
+            info!(
+                "Live preview: model '{}' arch='{}' variant='{}' supports_streaming={} \
                      supports_translate={} languages={:?}",
-                    model_id,
-                    model.arch(),
-                    model.variant(),
-                    caps.supports_streaming,
-                    caps.supports_translate,
-                    caps.languages,
-                );
-                (caps.supports_streaming, caps.languages)
-            }
-            _ => {
-                info!(
-                    "Live preview: model '{}' is not a transcribe-cpp model; \
-                     streaming is unavailable, using batch transcription",
-                    model_id
-                );
-                (false, Vec::new())
-            }
+                model_id,
+                model.arch(),
+                model.variant(),
+                caps.supports_streaming,
+                caps.supports_translate,
+                caps.languages,
+            );
+            (caps.supports_streaming, caps.languages)
         };
 
         if !supports_streaming {
@@ -941,10 +830,7 @@ impl TranscriptionManager {
         let mut finalize_reply: Option<mpsc::Sender<Option<FinalizedStreamText>>> = None;
         let mut finalize_result: Option<Option<FinalizedStreamText>> = None;
         let stream_started = 'stream: {
-            let session = match &mut engine {
-                LoadedEngine::TranscribeCpp(s) => s,
-                _ => break 'stream false,
-            };
+            let LoadedEngine(session) = &mut engine;
 
             // Read the backend string before beginning the stream — the
             // `Stream` borrows `session` mutably for its lifetime, so we can't
@@ -1219,23 +1105,10 @@ impl TranscriptionManager {
             );
         }
 
-        // Whether the loaded transcribe-cpp model advertises
-        // Feature::InitialPrompt. Informational (logged below); the whisper
-        // run extension and the fuzzy-correction skip are gated on
-        // `model_is_whisper` instead, since non-whisper archs can advertise
-        // the feature while rejecting the whisper-kind extension.
-        let mut model_takes_initial_prompt = false;
-        // Whether the loaded model is actually whisper-family (arch string).
-        // Non-whisper archs (e.g. Voxtral Small) can advertise
-        // Feature::InitialPrompt yet reject the whisper-kind run extension
-        // with INVALID_ARG, so the whisper extension must be gated on the
-        // arch, not on the feature (see #1601).
-        let mut model_is_whisper = false;
-
-        // Perform transcription with the appropriate engine.
+        // Perform transcription with the loaded engine.
         // We use catch_unwind to prevent engine panics from poisoning the mutex,
         // which would make the app hang indefinitely on subsequent operations.
-        let (result, output_language, model_languages) = {
+        let (result, output_language, model_languages, model_is_whisper) = {
             let mut engine_guard = self.lock_engine();
 
             // Take the engine out so we own it during transcription.
@@ -1258,149 +1131,70 @@ impl TranscriptionManager {
             // ModelManager copy. The whisper run extension is kind-tagged, so
             // non-whisper archs (parakeet, voxtral, …) reject it with
             // INVALID_ARG; attach it only where supported.
-            let mut model_languages = self
-                .model_manager
-                .get_model_info(&active_model)
-                .map(|info| info.supported_languages)
-                .unwrap_or_default();
             let mut applied_language_hint: Option<String> = None;
             let mut model_detected_language: Option<String> = None;
-            if let LoadedEngine::TranscribeCpp(session) = &engine {
+            let (model_is_whisper, model_languages) = {
+                let LoadedEngine(session) = &engine;
                 let model = session.model();
                 let caps = model.capabilities();
-                model_takes_initial_prompt = model.supports(Feature::InitialPrompt);
-                model_is_whisper = model.arch() == "whisper";
-                model_languages = caps.languages;
+                // Whether the loaded model is actually whisper-family (arch
+                // string). Non-whisper archs (e.g. Voxtral Small) can advertise
+                // Feature::InitialPrompt yet reject the whisper-kind run
+                // extension with INVALID_ARG, so the whisper extension must be
+                // gated on the arch, not on the feature (see #1601).
+                let model_is_whisper = model.arch() == "whisper";
                 debug!(
                     "transcribe-cpp model '{}' on '{}': initial_prompt={}, languages={:?}",
                     settings.selected_model,
                     model.backend(),
-                    model_takes_initial_prompt,
-                    model_languages
+                    model.supports(Feature::InitialPrompt),
+                    caps.languages
                 );
-            }
+                (model_is_whisper, caps.languages)
+            };
 
             let transcribe_result = catch_unwind(AssertUnwindSafe(|| -> Result<String> {
-                match &mut engine {
-                    LoadedEngine::TranscribeCpp(session) => {
-                        // Custom words become the initial prompt ONLY for models
-                        // that accept one (whisper family). Attaching the
-                        // whisper run extension to a non-whisper arch is rejected
-                        // with INVALID_ARG, so skip it there and let the fuzzy
-                        // post-correction handle custom words instead.
-                        let family = if settings.custom_words.is_empty() || !model_is_whisper {
-                            None
-                        } else {
-                            Some(RunExtension::Whisper(WhisperRunOptions {
-                                initial_prompt: Some(settings.custom_words.join(", ")),
-                                ..Default::default()
-                            }))
-                        };
-
-                        let language =
-                            transcribe_cpp_language(&validated_language, &model_languages);
-                        applied_language_hint = language.clone();
-
-                        let run_options = RunOptions {
-                            language,
-                            family,
+                {
+                    let LoadedEngine(session) = &mut engine;
+                    // Custom words become the initial prompt ONLY for models
+                    // that accept one (whisper family). Attaching the
+                    // whisper run extension to a non-whisper arch is rejected
+                    // with INVALID_ARG, so skip it there and let the fuzzy
+                    // post-correction handle custom words instead.
+                    let family = if settings.custom_words.is_empty() || !model_is_whisper {
+                        None
+                    } else {
+                        Some(RunExtension::Whisper(WhisperRunOptions {
+                            initial_prompt: Some(settings.custom_words.join(", ")),
                             ..Default::default()
-                        };
+                        }))
+                    };
 
-                        debug!(
-                            "transcribe-cpp run: task={:?}, language={:?}, initial_prompt={}",
-                            run_options.task,
-                            run_options.language,
-                            run_options.family.is_some()
-                        );
+                    let language = transcribe_cpp_language(&validated_language, &model_languages);
+                    applied_language_hint = language.clone();
 
-                        session
-                            .run(&audio, &run_options)
-                            .map(|t| {
-                                // Whisper's audio-based LID (auto mode only;
-                                // `None` when a language hint was passed).
-                                model_detected_language = t.language;
-                                t.text
-                            })
-                            .map_err(|e| {
-                                anyhow::anyhow!("transcribe-cpp transcription failed: {}", e)
-                            })
-                    }
-                    LoadedEngine::Parakeet(parakeet_engine) => {
-                        let params = ParakeetParams {
-                            timestamp_granularity: Some(TimestampGranularity::Segment),
-                            ..Default::default()
-                        };
-                        parakeet_engine
-                            .transcribe_with(&audio, &params)
-                            .map(|r| r.text)
-                            .map_err(|e| anyhow::anyhow!("Parakeet transcription failed: {}", e))
-                    }
-                    LoadedEngine::Moonshine(moonshine_engine) => moonshine_engine
-                        .transcribe(&audio, &TranscribeOptions::default())
-                        .map(|r| r.text)
-                        .map_err(|e| anyhow::anyhow!("Moonshine transcription failed: {}", e)),
-                    LoadedEngine::MoonshineStreaming(streaming_engine) => streaming_engine
-                        .transcribe(&audio, &TranscribeOptions::default())
-                        .map(|r| r.text)
-                        .map_err(|e| {
-                            anyhow::anyhow!("Moonshine streaming transcription failed: {}", e)
-                        }),
-                    LoadedEngine::SenseVoice(sense_voice_engine) => {
-                        let language = match validated_language.as_str() {
-                            "zh" => Some("zh".to_string()),
-                            "en" => Some("en".to_string()),
-                            "ja" => Some("ja".to_string()),
-                            "ko" => Some("ko".to_string()),
-                            "yue" => Some("yue".to_string()),
-                            _ => None,
-                        };
-                        applied_language_hint = language.clone();
-                        let params = SenseVoiceParams {
-                            language,
-                            use_itn: Some(true),
-                        };
-                        sense_voice_engine
-                            .transcribe_with(&audio, &params)
-                            .map(|r| r.text)
-                            .map_err(|e| anyhow::anyhow!("SenseVoice transcription failed: {}", e))
-                    }
-                    LoadedEngine::GigaAM(gigaam_engine) => gigaam_engine
-                        .transcribe(&audio, &TranscribeOptions::default())
-                        .map(|r| r.text)
-                        .map_err(|e| anyhow::anyhow!("GigaAM transcription failed: {}", e)),
-                    LoadedEngine::Canary(canary_engine) => {
-                        let lang = if validated_language == "auto" {
-                            None
-                        } else {
-                            Some(validated_language.clone())
-                        };
-                        applied_language_hint = lang.clone();
-                        let options = TranscribeOptions {
-                            language: lang,
-                            ..Default::default()
-                        };
-                        canary_engine
-                            .transcribe(&audio, &options)
-                            .map(|r| r.text)
-                            .map_err(|e| anyhow::anyhow!("Canary transcription failed: {}", e))
-                    }
-                    LoadedEngine::Cohere(cohere_engine) => {
-                        let lang = if validated_language == "auto" {
-                            None
-                        } else {
-                            Some(validated_language.clone())
-                        };
-                        applied_language_hint = lang.clone();
-                        let options = TranscribeOptions {
-                            language: lang,
-                            ..Default::default()
-                        };
-                        cohere_engine
-                            .transcribe(&audio, &options)
-                            .map(|r| r.text)
-                            .map_err(|e| anyhow::anyhow!("Cohere transcription failed: {}", e))
-                    }
+                    let run_options = RunOptions {
+                        language,
+                        family,
+                        ..Default::default()
+                    };
+
+                    debug!(
+                        "transcribe-cpp run: task={:?}, language={:?}, initial_prompt={}",
+                        run_options.task,
+                        run_options.language,
+                        run_options.family.is_some()
+                    );
+
+                    session
+                        .run(&audio, &run_options)
+                        .map(|t| {
+                            // Whisper's audio-based LID (auto mode only;
+                            // `None` when a language hint was passed).
+                            model_detected_language = t.language;
+                            t.text
+                        })
+                        .map_err(|e| anyhow::anyhow!("transcribe-cpp transcription failed: {}", e))
                 }
             }));
 
@@ -1456,14 +1250,13 @@ impl TranscriptionManager {
             );
             debug!("Output language evidence: {:?}", output_language);
 
-            (text, output_language, model_languages)
+            (text, output_language, model_languages, model_is_whisper)
         };
 
         // Apply fuzzy word correction if custom words are configured — UNLESS the
         // words were already handed to the model as an initial prompt (whisper
         // family). We don't pass a prompt to non-whisper models (it requires the
-        // whisper-kind run extension), so they still get fuzzy correction here,
-        // same as the ONNX engines.
+        // whisper-kind run extension), so they still get fuzzy correction here.
         let filtered_result = post_process_transcription_text(
             result,
             &settings,
@@ -1922,31 +1715,18 @@ fn transcribe_device_label(device: &transcribe_cpp::Device) -> String {
     }
 }
 
-/// Apply the user's ORT accelerator preference to the transcribe-rs global.
-/// Called on startup and before loading a model.
+/// Log the user's accelerator preference. Called on startup and before loading
+/// a model.
 ///
-/// The transcribe.cpp (whisper-family) backend is no longer set here: it is
-/// chosen at model-load time from [`select_transcribe_backend`], so changing the
-/// accelerator only needs a model reload (see `reload_model_on_next_use`).
+/// The transcribe.cpp backend is not set here: it is chosen at model-load time
+/// from [`select_transcribe_backend`], so changing the accelerator only needs a
+/// model reload (see `reload_model_on_next_use`).
 pub fn apply_accelerator_settings(app: &tauri::AppHandle) {
-    use transcribe_rs::accel;
-
     let settings = get_settings(app);
-
     info!(
         "transcribe.cpp accelerator preference: {:?} (applied on next model load)",
         settings.transcribe_accelerator
     );
-
-    let ort_pref = match settings.ort_accelerator {
-        OrtAcceleratorSetting::Auto => accel::OrtAccelerator::Auto,
-        OrtAcceleratorSetting::Cpu => accel::OrtAccelerator::CpuOnly,
-        OrtAcceleratorSetting::Cuda => accel::OrtAccelerator::Cuda,
-        OrtAcceleratorSetting::DirectMl => accel::OrtAccelerator::DirectMl,
-        OrtAcceleratorSetting::Rocm => accel::OrtAccelerator::Rocm,
-    };
-    accel::set_ort_accelerator(ort_pref);
-    info!("ORT accelerator set to: {}", ort_pref);
 }
 
 #[derive(Serialize, Clone, Debug, Type)]
@@ -1986,22 +1766,13 @@ fn cached_gpu_devices() -> &'static [GpuDeviceOption] {
 #[derive(Serialize, Clone, Debug, Type)]
 pub struct AvailableAccelerators {
     pub transcribe: Vec<String>,
-    pub ort: Vec<String>,
     pub gpu_devices: Vec<GpuDeviceOption>,
 }
 
 /// Return the accelerators available to this process on its current host.
 pub fn get_available_accelerators() -> AvailableAccelerators {
-    use transcribe_rs::accel::OrtAccelerator;
-
-    let ort_options: Vec<String> = OrtAccelerator::available()
-        .into_iter()
-        .map(|a| a.to_string())
-        .collect();
-
     AvailableAccelerators {
         transcribe: vec!["auto".to_string(), "cpu".to_string(), "gpu".to_string()],
-        ort: ort_options,
         gpu_devices: cached_gpu_devices().to_vec(),
     }
 }
