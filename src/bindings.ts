@@ -747,6 +747,11 @@ export type KeyboardDiagnosticReport = { secure_input_enabled: boolean; culprit_
  * Counts only — key identity is deliberately never captured.
  */
 key_down: number; key_up: number; flags_changed: number; mouse: number; duration_ms: number }
+/**
+ * Which backend registers global shortcuts. The UI records through
+ * handy-keys only; `Tauri` is the in-session fallback when handy-keys fails
+ * to start (see `shortcut::active_implementation`) and is never persisted.
+ */
 export type KeyboardImplementation = "tauri" | "handy_keys"
 export type LLMPrompt = { id: string; name: string; prompt: string }
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error"
