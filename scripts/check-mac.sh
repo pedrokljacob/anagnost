@@ -7,7 +7,8 @@
 #   --mark         write the footprint marker and exit; run it before
 #                  installing, then run the script again afterwards
 #   --wav <file>   transcribe this WAV (16 kHz, mono, 16-bit) through the
-#                  installed app and report the text and speed
+#                  installed app and report the text and speed;
+#                  tests/audio/jfk.wav is a committed fixture
 #   --expect <t>   fail unless the transcript contains <t> (case-insensitive)
 #
 # Prints one line per check and exits non-zero if any failed.

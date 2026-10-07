@@ -131,18 +131,21 @@ its bundle identifier, minimum macOS and stamped commit are right, the
 commit matches the published `latest` build, the app data folder is private
 and the logs hold no provider response bodies, no webview storage exists
 outside that folder, and nothing else was written since a marker. Pass a
-WAV (16 kHz, mono, 16-bit) and it transcribes it through the installed app
-on the real Metal path and prints the text and real-time factor:
+WAV and it transcribes it through the installed app on the real Metal path
+and prints the text and real-time factor. `tests/audio/jfk.wav` is a
+committed fixture (11 seconds of the 1961 inaugural address, public domain,
+from whisper.cpp's samples; 16 kHz, mono, 16-bit, which is what the headless
+mode accepts):
 
 ```bash
 scripts/check-mac.sh --mark          # before installing
 scripts/install-mac.sh
 # grant permissions, download a model, dictate once
-scripts/check-mac.sh --wav dictation.wav --expect "ask not"
+scripts/check-mac.sh --wav tests/audio/jfk.wav --expect "ask not"
 ```
 
-A fixture WAV is made once on the Mac with
-`say -o dictation.aiff "..." && afconvert -f WAVE -d LEI16@16000 -c 1 dictation.aiff dictation.wav`.
+To check with your own voice instead, record one on the Mac with
+`say -o own.aiff "..." && afconvert -f WAVE -d LEI16@16000 -c 1 own.aiff own.wav`.
 
 What remains manual, each a yes or no: the Microphone and Accessibility
 prompts appear once and the grants survive an update; the shortcut records
@@ -355,7 +358,7 @@ LD_LIBRARY_PATH=$PWD/transcribe-libs \
 XDG_DATA_HOME=$S/xdg/data XDG_CONFIG_HOME=$S/xdg/config \
 XDG_CACHE_HOME=$S/xdg/cache \
 xvfb-run -a target/debug/anagnost \
-  --transcribe-file $S/audio/jfk.wav \
+  --transcribe-file ../tests/audio/jfk.wav \
   --model handy-computer/canary-180m-flash-gguf/canary-180m-flash-Q8_0.gguf
 ```
 
@@ -370,8 +373,7 @@ Test data:
   `$S/xdg/data/com.pedrojacob.anagnost/huggingface/models--handy-computer--canary-180m-flash-gguf/`
   (`snapshots/<revision>/` plus `refs/main` containing the revision). Take the
   revision from `src-tauri/src/catalog/catalog.json`.
-- Audio: `jfk.wav` from whisper.cpp's `samples/` directory, saved as
-  `$S/audio/jfk.wav`.
+- Audio: `tests/audio/jfk.wav`, committed (whisper.cpp's sample).
 
 On Linux the regenerated bindings carry the non-macOS doc comment for
 `isLaptop`; keep the macOS wording when committing `src/bindings.ts`.

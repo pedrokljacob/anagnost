@@ -179,8 +179,8 @@ jobs:
         with:
           fetch-depth: 2
 
-      # A push that only touches documentation would rebuild and republish
-      # an identical app. Skip the rest of the job; `latest` then keeps
+      # A push that only touches documentation or the test suites would
+      # rebuild and republish an identical app. Skip the rest of the job; `latest` then keeps
       # pointing at the last build that changed the app. Forced pushes and
       # merges with more than one parent are always built.
       - name: Check for app changes
@@ -194,7 +194,7 @@ jobs:
           fi
           changed=$(git diff --name-only "${{ github.event.before }}" "$GITHUB_SHA")
           if [ -z "$changed" ] \
-            || echo "$changed" | grep -qvE '(^|/)[^/]+\.md$|^LICENSE$|^\.gitignore$|^\.prettierignore$|^\.prettierrc$|^\.vscode/'; then
+            || echo "$changed" | grep -qvE '(^|/)[^/]+\.md$|^LICENSE$|^\.gitignore$|^\.prettierignore$|^\.prettierrc$|^\.vscode/|^tests/'; then
             echo "build=true" >> "$GITHUB_OUTPUT"
           else
             echo "Only documentation changed; skipping the Mac build."
