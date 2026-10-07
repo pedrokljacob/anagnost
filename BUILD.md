@@ -238,6 +238,20 @@ it (Playwright's `colorScheme`, the T3 preview's appearance setting) for
 screenshots. Headless WebKit (`playwright-cli open
 --browser=webkit`) is the closest match to the Mac's WKWebView.
 
+## UI contract tests
+
+`bun run test:ui` drives the mock preview in headless WebKit (Playwright) and
+compares the accessibility tree of each settings section, scenario and
+overlay state with the ARIA snapshots in `tests/ui/__snapshots__/`, in light
+and dark. A few tests also exercise the mock (toggling a setting, starring
+and deleting history, starting and cancelling a download, the delete
+confirmation). The clock is frozen so history times are stable. When a change
+to the UI is intended, run `bun run test:ui:update` and review the snapshot
+diff before committing it. Pixel screenshots are not compared; approved units
+may get pixel baselines later (see `REDESIGN.md`). The first run needs
+`bunx playwright install webkit` once (CI installs it with system
+dependencies).
+
 ## Linux test bench
 
 The Rust crate must keep compiling and passing its tests on Linux, and the
