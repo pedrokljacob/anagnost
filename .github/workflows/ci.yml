@@ -22,11 +22,9 @@ permissions:
 
 env:
   # ort-sys (ONNX Runtime, used by the Silero VAD) downloads its prebuilt
-  # library into the user's cache folder and records that path in its build
-  # output. A restored target/ then points at a folder the fresh runner
-  # does not have, and the link fails with "could not find native static
-  # library onnxruntime". Keeping the download inside target/ keeps the two
-  # together.
+  # library into the user's cache folder by default and records that path in
+  # its build output. Keep the download inside target/ instead; see the
+  # "Refresh the ONNX Runtime download" steps for the other half.
   ORT_CACHE_DIR: ${{ github.workspace }}/src-tauri/target/ort-cache
 
 jobs:
@@ -111,6 +109,14 @@ jobs:
           cache-bin: false
           # Branch runs reuse main's cache; only main refreshes it.
           save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      # ort-sys reads ORT_CACHE_DIR without telling cargo, so a restored
+      # target/ keeps its old build output and the link search path in it,
+      # which a fresh runner does not have ("could not find native static
+      # library onnxruntime"). Dropping that output makes the build script
+      # run again and fetch the library (8 MB) into ORT_CACHE_DIR.
+      - name: Refresh the ONNX Runtime download
+        run: rm -rf src-tauri/target/*/build/ort-sys-*
 
       # The BUILD.md "Linux test bench" list minus what only an AppImage
       # (patchelf) or a human (vulkan-tools) needs; xvfb runs the headless
@@ -209,6 +215,11 @@ jobs:
           workspaces: "./src-tauri -> target"
           cache-bin: false
           save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      # See the Rust job for why.
+      - name: Refresh the ONNX Runtime download
+        if: steps.changes.outputs.build == 'true'
+        run: rm -rf src-tauri/target/*/build/ort-sys-*
 
       - name: Install frontend dependencies
         if: steps.changes.outputs.build == 'true'
