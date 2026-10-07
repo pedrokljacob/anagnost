@@ -72,7 +72,6 @@ static CANCEL_REQUESTED: AtomicBool = AtomicBool::new(false);
 
 /// Whether the cancel shortcut is actually registered with the backend.
 /// The lock also serializes reconciliation passes.
-#[cfg(not(target_os = "linux"))]
 static CANCEL_REGISTERED: std::sync::Mutex<bool> = std::sync::Mutex::new(false);
 
 /// Register the cancel shortcut (called when recording starts)
@@ -106,35 +105,25 @@ fn schedule_cancel_reconcile(app: &AppHandle) {
 }
 
 fn reconcile_cancel_shortcut(app: &AppHandle) {
-    // Cancel shortcut is disabled on Linux due to instability with dynamic shortcut registration
-    #[cfg(target_os = "linux")]
-    {
-        let _ = app;
+    let mut registered = CANCEL_REGISTERED.lock().unwrap_or_else(|e| e.into_inner());
+    let requested = CANCEL_REQUESTED.load(Ordering::SeqCst);
+    if requested == *registered {
         return;
     }
 
-    #[cfg(not(target_os = "linux"))]
-    {
-        let mut registered = CANCEL_REGISTERED.lock().unwrap_or_else(|e| e.into_inner());
-        let requested = CANCEL_REQUESTED.load(Ordering::SeqCst);
-        if requested == *registered {
-            return;
+    let Some(cancel_binding) = get_settings(app).bindings.get("cancel").cloned() else {
+        return;
+    };
+
+    if requested {
+        match register_shortcut(app, cancel_binding) {
+            Ok(()) => *registered = true,
+            Err(e) => error!("Failed to register cancel shortcut: {}", e),
         }
-
-        let Some(cancel_binding) = get_settings(app).bindings.get("cancel").cloned() else {
-            return;
-        };
-
-        if requested {
-            match register_shortcut(app, cancel_binding) {
-                Ok(()) => *registered = true,
-                Err(e) => error!("Failed to register cancel shortcut: {}", e),
-            }
-        } else {
-            match unregister_shortcut(app, cancel_binding) {
-                Ok(()) => *registered = false,
-                Err(e) => error!("Failed to unregister cancel shortcut: {}", e),
-            }
+    } else {
+        match unregister_shortcut(app, cancel_binding) {
+            Ok(()) => *registered = false,
+            Err(e) => error!("Failed to unregister cancel shortcut: {}", e),
         }
     }
 }

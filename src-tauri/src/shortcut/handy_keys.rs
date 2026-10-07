@@ -387,19 +387,13 @@ fn modifiers_to_strings(modifiers: handy_keys::Modifiers) -> Vec<String> {
         result.push("ctrl".to_string());
     }
     if modifiers.contains(handy_keys::Modifiers::OPT) {
-        #[cfg(target_os = "macos")]
         result.push("option".to_string());
-        #[cfg(not(target_os = "macos"))]
-        result.push("alt".to_string());
     }
     if modifiers.contains(handy_keys::Modifiers::SHIFT) {
         result.push("shift".to_string());
     }
     if modifiers.contains(handy_keys::Modifiers::CMD) {
-        #[cfg(target_os = "macos")]
         result.push("command".to_string());
-        #[cfg(not(target_os = "macos"))]
-        result.push("super".to_string());
     }
     if modifiers.contains(handy_keys::Modifiers::FN) {
         result.push("fn".to_string());

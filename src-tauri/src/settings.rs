@@ -186,29 +186,20 @@ pub enum AutoSubmitKey {
     CmdEnter,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+/// Which backend registers global shortcuts. The UI records through
+/// handy-keys only; `Tauri` is the in-session fallback when handy-keys fails
+/// to start (see `shortcut::active_implementation`) and is never persisted.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum KeyboardImplementation {
     Tauri,
+    #[default]
     HandyKeys,
-}
-
-impl Default for KeyboardImplementation {
-    fn default() -> Self {
-        #[cfg(target_os = "linux")]
-        return KeyboardImplementation::Tauri;
-        #[cfg(not(target_os = "linux"))]
-        return KeyboardImplementation::HandyKeys;
-    }
 }
 
 impl Default for PasteMethod {
     fn default() -> Self {
-        // Default to CtrlV for macOS, Direct for Linux
-        #[cfg(target_os = "linux")]
-        return PasteMethod::Direct;
-        #[cfg(not(target_os = "linux"))]
-        return PasteMethod::CtrlV;
+        PasteMethod::CtrlV
     }
 }
 
@@ -449,18 +440,14 @@ fn default_selected_language() -> String {
 }
 
 fn default_overlay_position() -> OverlayPosition {
-    // Position only matters when the overlay is shown; whether it shows at all is
-    // `overlay_style` (Linux defaults that to None). So a single default suffices.
+    // Position only matters when the overlay is shown; whether it shows at all
+    // is `overlay_style`.
     OverlayPosition::Bottom
 }
 
 fn default_overlay_style() -> OverlayStyle {
-    // Linux hides the overlay by default; other platforms show the live overlay.
     // Position is independent and only selects top vs. bottom placement.
-    #[cfg(target_os = "linux")]
-    return OverlayStyle::None;
-    #[cfg(not(target_os = "linux"))]
-    return OverlayStyle::Live;
+    OverlayStyle::Live
 }
 
 fn default_vad_enabled() -> bool {
@@ -722,10 +709,7 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
 pub const SETTINGS_STORE_PATH: &str = "settings_store.json";
 
 pub fn get_default_settings() -> AppSettings {
-    #[cfg(target_os = "macos")]
     let default_shortcut = "option+space";
-    #[cfg(not(target_os = "macos"))]
-    let default_shortcut = "ctrl+space";
 
     let mut bindings = HashMap::new();
     bindings.insert(
@@ -738,10 +722,7 @@ pub fn get_default_settings() -> AppSettings {
             current_binding: default_shortcut.to_string(),
         },
     );
-    #[cfg(target_os = "macos")]
     let default_post_process_shortcut = "option+shift+space";
-    #[cfg(not(target_os = "macos"))]
-    let default_post_process_shortcut = "ctrl+shift+space";
 
     bindings.insert(
         "transcribe_with_post_process".to_string(),
@@ -980,7 +961,7 @@ fn apply_settings_migrations(
         updated = true;
     }
 
-    if normalize_keyboard_implementation(settings, cfg!(target_os = "macos")) {
+    if normalize_keyboard_implementation(settings) {
         updated = true;
     }
 
@@ -1037,11 +1018,11 @@ fn apply_settings_migrations(
     updated
 }
 
-/// On macOS shortcuts always run on handy-keys: the UI records through it and
-/// offers no way to switch. Older builds persisted `Tauri` after a failed
-/// handy-keys start, which then stuck forever, so fold it back here.
-fn normalize_keyboard_implementation(settings: &mut AppSettings, handy_keys_only: bool) -> bool {
-    if handy_keys_only && settings.keyboard_implementation == KeyboardImplementation::Tauri {
+/// Shortcuts always run on handy-keys: the UI records through it and offers
+/// no way to switch. Older builds persisted `Tauri` after a failed handy-keys
+/// start, which then stuck forever, so fold it back here.
+fn normalize_keyboard_implementation(settings: &mut AppSettings) -> bool {
+    if settings.keyboard_implementation == KeyboardImplementation::Tauri {
         settings.keyboard_implementation = KeyboardImplementation::HandyKeys;
         return true;
     }
@@ -1368,9 +1349,8 @@ mod tests {
         );
     }
 
-    #[cfg(not(target_os = "linux"))]
     #[test]
-    fn default_overlay_style_is_live_when_overlay_defaults_on() {
+    fn default_overlay_style_is_live() {
         let settings = get_default_settings();
         assert_eq!(settings.overlay_style, OverlayStyle::Live);
     }
@@ -1561,28 +1541,16 @@ mod tests {
     }
 
     #[test]
-    fn persisted_tauri_keyboard_falls_back_to_handy_keys_on_macos() {
+    fn persisted_tauri_keyboard_falls_back_to_handy_keys() {
         let mut settings = get_default_settings();
         settings.keyboard_implementation = KeyboardImplementation::Tauri;
 
-        assert!(normalize_keyboard_implementation(&mut settings, true));
+        assert!(normalize_keyboard_implementation(&mut settings));
         assert_eq!(
             settings.keyboard_implementation,
             KeyboardImplementation::HandyKeys
         );
-        assert!(!normalize_keyboard_implementation(&mut settings, true));
-    }
-
-    #[test]
-    fn keyboard_implementation_is_kept_off_macos() {
-        let mut settings = get_default_settings();
-        settings.keyboard_implementation = KeyboardImplementation::Tauri;
-
-        assert!(!normalize_keyboard_implementation(&mut settings, false));
-        assert_eq!(
-            settings.keyboard_implementation,
-            KeyboardImplementation::Tauri
-        );
+        assert!(!normalize_keyboard_implementation(&mut settings));
     }
 
     #[test]
