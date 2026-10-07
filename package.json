@@ -18,23 +18,21 @@
     "check:model-languages": "bun scripts/check-model-language-coverage.ts"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.1.16",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-dialog": "~2.6",
     "@tauri-apps/plugin-os": "~2.3.2",
     "i18next": "^25.7.2",
-    "immer": "^11.1.3",
     "lucide-react": "^0.542.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-i18next": "^16.4.1",
     "react-select": "^5.8.0",
     "sonner": "^2.0.7",
-    "tailwindcss": "^4.1.16",
     "tauri-plugin-macos-permissions-api": "2.3.0",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.1.16",
     "@tauri-apps/cli": "^2.11.0",
     "@types/node": "^24.9.1",
     "@types/react": "^18.3.26",
@@ -44,6 +42,7 @@
     "eslint": "^9.39.1",
     "eslint-plugin-i18next": "^6.1.3",
     "prettier": "^3.6.2",
+    "tailwindcss": "^4.1.16",
     "typescript": "~5.6.3",
     "vite": "^6.4.1"
   }

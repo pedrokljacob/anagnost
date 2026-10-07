@@ -34,11 +34,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-logs
 
 # Rust / Tauri
 /target/
-recording_*
 
 # Agent tooling
 .claude/

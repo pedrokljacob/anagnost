@@ -26,6 +26,9 @@ export default defineConfig(async ({ mode }) => ({
 
   // Path aliases
   resolve: {
+    // bun.lock nests older @tauri-apps/api copies under the plugins; bundle
+    // the root one only.
+    dedupe: ["@tauri-apps/api"],
     alias: {
       "@": resolve(__dirname, "./src"),
       "@/bindings": resolve(__dirname, "./src/bindings.ts"),
@@ -34,12 +37,20 @@ export default defineConfig(async ({ mode }) => ({
 
   // Multiple entry points for main app and overlay
   build: {
+    // WKWebView on macOS 13, the oldest supported system, is Safari 16.
+    target: "safari16",
     rollupOptions: {
       input: {
         main: resolve(__dirname, "index.html"),
         overlay: resolve(__dirname, "src/overlay/index.html"),
       },
     },
+  },
+
+  esbuild: {
+    // One copy of each license header at the end of a chunk instead of one
+    // per module.
+    legalComments: "eof",
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

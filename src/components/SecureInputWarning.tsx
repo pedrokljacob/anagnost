@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
-import { TriangleAlert, X } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 import { commands, type SecureInputStatus } from "@/bindings";
 
 /**
@@ -86,7 +86,7 @@ const SecureInputWarning: React.FC = () => {
   return (
     <div className="w-full rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5">
       <div className="flex items-center gap-3">
-        <TriangleAlert className="h-5 w-5 shrink-0 text-warning" />
+        <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
         <p className="min-w-0 flex-1 text-sm font-medium leading-5">
           {message}
         </p>
