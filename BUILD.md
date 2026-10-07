@@ -250,7 +250,7 @@ Rust, Bun and the system packages Tauri needs. On Ubuntu/Debian:
 sudo apt install build-essential clang libclang-dev libevdev-dev libasound2-dev \
   pkg-config libssl-dev libvulkan-dev vulkan-tools glslc spirv-headers \
   glslang-tools libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
-  librsvg2-dev libgtk-layer-shell0 libgtk-layer-shell-dev patchelf cmake xvfb
+  librsvg2-dev patchelf cmake xvfb
 ```
 
 ### Full check

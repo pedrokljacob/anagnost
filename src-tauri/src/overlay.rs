@@ -5,23 +5,11 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize};
 
-#[cfg(not(target_os = "macos"))]
-use log::debug;
-
-#[cfg(not(target_os = "macos"))]
-use tauri::WebviewWindowBuilder;
-
 #[cfg(target_os = "macos")]
 use tauri::WebviewUrl;
 
 #[cfg(target_os = "macos")]
 use tauri_nspanel::{tauri_panel, CollectionBehavior, PanelBuilder, PanelLevel, StyleMask};
-
-#[cfg(target_os = "linux")]
-use crate::utils;
-
-#[cfg(target_os = "linux")]
-use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 
 #[cfg(target_os = "macos")]
 tauri_panel! {
@@ -62,85 +50,8 @@ fn overlay_dimensions(state: &str) -> (f64, f64) {
 static LAST_MIC_LEVEL_EMIT: AtomicU64 = AtomicU64::new(0);
 const EMIT_THROTTLE_MS: u64 = 33; // ~30 FPS
 
-#[cfg(target_os = "macos")]
 const OVERLAY_TOP_OFFSET: f64 = 46.0;
-#[cfg(not(target_os = "macos"))]
-const OVERLAY_TOP_OFFSET: f64 = 4.0;
-
-#[cfg(target_os = "macos")]
 const OVERLAY_BOTTOM_OFFSET: f64 = 15.0;
-
-#[cfg(not(target_os = "macos"))]
-const OVERLAY_BOTTOM_OFFSET: f64 = 40.0;
-
-/// Configures the edge and offset of a GTK layer surface. gtk-layer-shell
-/// commits anchor and margin changes itself, including while the surface is
-/// mapped, so changing position does not require a manual hide/show cycle.
-#[cfg(target_os = "linux")]
-fn configure_layer_shell_position(gtk_window: &gtk::ApplicationWindow, position: OverlayPosition) {
-    let (edge, opposite_edge, margin) = match position {
-        OverlayPosition::Top => (Edge::Top, Edge::Bottom, OVERLAY_TOP_OFFSET),
-        OverlayPosition::Bottom => (Edge::Bottom, Edge::Top, OVERLAY_BOTTOM_OFFSET),
-    };
-
-    gtk_window.set_anchor(edge, true);
-    gtk_window.set_anchor(opposite_edge, false);
-    gtk_window.set_layer_shell_margin(edge, margin.round() as i32);
-    gtk_window.set_layer_shell_margin(opposite_edge, 0);
-}
-
-/// Configures a GTK layer surface before it is shown.
-///
-/// Tauri's normal `set_size` path calls `gtk_window_resize`, but layer surfaces
-/// derive their dimensions from GTK's size request. gtk-layer-shell documents
-/// the `set_size_request` + `resize(1, 1)` sequence for forcing a new size.
-#[cfg(target_os = "linux")]
-fn configure_layer_shell_surface(
-    gtk_window: &gtk::ApplicationWindow,
-    position: OverlayPosition,
-    width: f64,
-    height: f64,
-) {
-    use gtk::prelude::{GtkWindowExt, WidgetExt};
-
-    configure_layer_shell_position(gtk_window, position);
-
-    gtk_window.set_size_request(
-        width.round().max(1.0) as i32,
-        height.round().max(1.0) as i32,
-    );
-    gtk_window.resize(1, 1);
-}
-
-/// Initializes GTK layer shell for Linux overlay window
-/// Returns true if layer shell was successfully initialized, false otherwise
-#[cfg(target_os = "linux")]
-fn init_gtk_layer_shell(overlay_window: &tauri::webview::WebviewWindow) -> bool {
-    if utils::env_flag_enabled("ANAGNOST_NO_GTK_LAYER_SHELL") {
-        debug!("Skipping GTK layer shell init (ANAGNOST_NO_GTK_LAYER_SHELL is enabled)");
-        return false;
-    }
-
-    if !gtk_layer_shell::is_supported() {
-        return false;
-    }
-
-    // Try to get the GTK window from the Tauri webview
-    if let Ok(gtk_window) = overlay_window.gtk_window() {
-        gtk_window.init_layer_shell();
-        gtk_window.set_layer(Layer::Overlay);
-        gtk_window.set_keyboard_mode(KeyboardMode::None);
-        gtk_window.set_exclusive_zone(0);
-
-        let overlay_position = settings::get_settings(overlay_window.app_handle()).overlay_position;
-        configure_layer_shell_surface(&gtk_window, overlay_position, OVERLAY_WIDTH, OVERLAY_HEIGHT);
-
-        let initialized = gtk_window.is_layer_window();
-        LAYER_SHELL_ACTIVE.store(initialized, Ordering::SeqCst);
-        return initialized;
-    }
-    false
-}
 
 fn get_monitor_with_cursor(app_handle: &AppHandle) -> Option<tauri::Monitor> {
     if let Some(mouse_location) = input::get_cursor_position(app_handle) {
@@ -192,9 +103,8 @@ fn is_mouse_within_monitor(
 /// The Bottom anchor uses the macOS work area (visibleFrame) so the overlay
 /// tracks the Dock — above it when shown, at the screen edge when hidden.
 /// This relies on tauri 2.11's work_area.position.y fix (#14655), the same
-/// bug that led PR #969 to abandon work_area for full monitor bounds. Top and
-/// Linux keep full monitor bounds plus the fixed offsets (work_area is
-/// unreliable on Wayland).
+/// bug that led PR #969 to abandon work_area for full monitor bounds. Top
+/// keeps full monitor bounds plus the fixed offset.
 ///
 /// We must use LogicalPosition (not PhysicalPosition) because Tauri/tao
 /// converts PhysicalPosition using the scale factor of the monitor the window
@@ -218,13 +128,8 @@ fn calculate_overlay_position(
         OverlayPosition::Bottom => {
             // work_area.position shares monitor.position's global coordinate
             // space, so no monitor offset is added.
-            #[cfg(target_os = "macos")]
-            let bottom = {
-                let wa = monitor.work_area();
-                (wa.position.y as f64 + wa.size.height as f64) / scale
-            };
-            #[cfg(not(target_os = "macos"))]
-            let bottom = monitor_y + monitor.size().height as f64 / scale;
+            let wa = monitor.work_area();
+            let bottom = (wa.position.y as f64 + wa.size.height as f64) / scale;
 
             bottom - height - OVERLAY_BOTTOM_OFFSET
         }
@@ -241,64 +146,10 @@ fn current_overlay_logical_size(window: &tauri::webview::WebviewWindow) -> Optio
     Some((size.width as f64 / scale, size.height as f64 / scale))
 }
 
-/// Creates the recording overlay window and keeps it hidden by default
+/// The overlay is a macOS panel. The Linux test bench runs headless, so
+/// there is nothing to create elsewhere.
 #[cfg(not(target_os = "macos"))]
-pub fn create_recording_overlay(app_handle: &AppHandle) {
-    // On Linux (Wayland), monitor detection often fails, but we don't need exact coordinates
-    // for Layer Shell as we use anchors. On other platforms, we require a monitor.
-    #[cfg(not(target_os = "linux"))]
-    {
-        let position = calculate_overlay_position(app_handle, OVERLAY_WIDTH, OVERLAY_HEIGHT);
-        if position.is_none() {
-            debug!("Failed to determine overlay position, not creating overlay window");
-            return;
-        }
-    }
-
-    // Position starts unset — update_overlay_position() sets the correct
-    // LogicalPosition before the overlay is shown.
-    let builder = WebviewWindowBuilder::new(
-        app_handle,
-        "recording_overlay",
-        tauri::WebviewUrl::App("src/overlay/index.html".into()),
-    )
-    .title("Recording")
-    .resizable(false)
-    .inner_size(OVERLAY_WIDTH, OVERLAY_HEIGHT)
-    .shadow(false)
-    .maximizable(false)
-    .minimizable(false)
-    .closable(false)
-    .accept_first_mouse(true)
-    .decorations(false)
-    .always_on_top(true)
-    .skip_taskbar(true)
-    .transparent(true)
-    .focusable(false)
-    .focused(false)
-    .visible(false)
-    .incognito(true);
-
-    #[allow(unused_variables)]
-    match builder.build() {
-        Ok(window) => {
-            #[cfg(target_os = "linux")]
-            {
-                // Try to initialize GTK layer shell, ignore errors if compositor doesn't support it
-                if init_gtk_layer_shell(&window) {
-                    debug!("GTK layer shell initialized for overlay window");
-                } else {
-                    debug!("GTK layer shell not available, falling back to regular window");
-                }
-            }
-
-            debug!("Recording overlay window created successfully (hidden)");
-        }
-        Err(e) => {
-            debug!("Failed to create recording overlay window: {}", e);
-        }
-    }
-}
+pub fn create_recording_overlay(_app_handle: &AppHandle) {}
 
 /// Creates the recording overlay panel and keeps it hidden by default (macOS)
 #[cfg(target_os = "macos")]
@@ -352,14 +203,10 @@ fn show_overlay_state(app_handle: &AppHandle, state: &str) {
         return;
     }
 
-    // The rest queries monitors and the cursor and mutates window geometry. On
-    // Linux the monitor/cursor lookups hit GDK/Xlib on the process's shared X11
-    // connection, which is only safe from the GTK main thread — running them on
-    // a background thread corrupts the connection and hard-crashes the app
-    // (issue #227). Hop to the main thread on every platform to keep the
-    // geometry path uniform (it also keeps macOS's NSScreen access
-    // main-thread-correct). run_on_main_thread runs the closure
-    // inline when already on the main thread, so this never deadlocks.
+    // The rest queries monitors and the cursor and mutates window geometry.
+    // Hop to the main thread so NSScreen access stays main-thread-correct.
+    // run_on_main_thread runs the closure inline when already on the main
+    // thread, so this never deadlocks.
     let handle = app_handle.clone();
     let state = state.to_string();
     let _ = app_handle.run_on_main_thread(move || show_overlay_state_on_main(&handle, &state));
@@ -373,54 +220,34 @@ fn show_overlay_state_on_main(app_handle: &AppHandle, state: &str) {
         // (see `hide_recording_overlay`).
         OVERLAY_SHOW_GENERATION.fetch_add(1, Ordering::SeqCst);
 
-        #[cfg(target_os = "linux")]
-        let shown_with_layer_shell = if LAYER_SHELL_ACTIVE.load(Ordering::SeqCst) {
-            let position = settings::get_settings(app_handle).overlay_position;
-            match overlay_window.gtk_window() {
-                Ok(gtk_window) => {
-                    configure_layer_shell_surface(&gtk_window, position, width, height)
-                }
-                Err(error) => log::error!("Failed to access GTK overlay window: {error}"),
-            }
-            let _ = overlay_window.show();
-            true
-        } else {
-            false
-        };
-        #[cfg(not(target_os = "linux"))]
-        let shown_with_layer_shell = false;
+        let size_started = std::time::Instant::now();
+        let _ = overlay_window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
+        let size_elapsed = size_started.elapsed();
 
-        if !shown_with_layer_shell {
-            let size_started = std::time::Instant::now();
-            let _ =
-                overlay_window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
-            let size_elapsed = size_started.elapsed();
+        let pos_started = std::time::Instant::now();
+        let set_pos_elapsed =
+            if let Some((x, y)) = calculate_overlay_position(app_handle, width, height) {
+                let set_pos_started = std::time::Instant::now();
+                let _ = overlay_window
+                    .set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
+                set_pos_started.elapsed()
+            } else {
+                std::time::Duration::ZERO
+            };
+        let pos_calc_elapsed = pos_started.elapsed() - set_pos_elapsed;
 
-            let pos_started = std::time::Instant::now();
-            let set_pos_elapsed =
-                if let Some((x, y)) = calculate_overlay_position(app_handle, width, height) {
-                    let set_pos_started = std::time::Instant::now();
-                    let _ = overlay_window
-                        .set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
-                    set_pos_started.elapsed()
-                } else {
-                    std::time::Duration::ZERO
-                };
-            let pos_calc_elapsed = pos_started.elapsed() - set_pos_elapsed;
+        let show_started = std::time::Instant::now();
+        let _ = overlay_window.show();
+        let show_elapsed = show_started.elapsed();
 
-            let show_started = std::time::Instant::now();
-            let _ = overlay_window.show();
-            let show_elapsed = show_started.elapsed();
-
-            log::debug!(
-                "overlay '{}': set_size={:?} pos_calc={:?} set_pos={:?} show={:?}",
-                state,
-                size_elapsed,
-                pos_calc_elapsed,
-                set_pos_elapsed,
-                show_elapsed
-            );
-        }
+        log::debug!(
+            "overlay '{}': set_size={:?} pos_calc={:?} set_pos={:?} show={:?}",
+            state,
+            size_elapsed,
+            pos_calc_elapsed,
+            set_pos_elapsed,
+            show_elapsed
+        );
 
         let _ = overlay_window.emit("show-overlay", state);
     }
@@ -465,24 +292,14 @@ pub fn show_processing_overlay(app_handle: &AppHandle) {
 
 /// Updates the overlay window position based on current settings
 pub fn update_overlay_position(app_handle: &AppHandle) {
-    // Positioning queries monitors/cursor (GDK/Xlib on Linux) and moves the
-    // window, so it must run on the main thread — see show_overlay_state.
+    // Positioning queries monitors/cursor and moves the window, so it must
+    // run on the main thread — see show_overlay_state.
     let handle = app_handle.clone();
     let _ = app_handle.run_on_main_thread(move || update_overlay_position_on_main(&handle));
 }
 
 fn update_overlay_position_on_main(app_handle: &AppHandle) {
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
-        #[cfg(target_os = "linux")]
-        if LAYER_SHELL_ACTIVE.load(Ordering::SeqCst) {
-            let position = settings::get_settings(app_handle).overlay_position;
-            match overlay_window.gtk_window() {
-                Ok(gtk_window) => configure_layer_shell_position(&gtk_window, position),
-                Err(error) => log::error!("Failed to access GTK overlay window: {error}"),
-            }
-            return;
-        }
-
         // Use the window's current size so centering stays correct whether the
         // overlay is in compact or streaming layout.
         let (width, height) = current_overlay_logical_size(&overlay_window)
@@ -532,11 +349,6 @@ pub fn hide_recording_overlay(app_handle: &AppHandle) {
 // populates the cache from initial settings.
 static OVERLAY_ENABLED: AtomicBool = AtomicBool::new(false);
 
-/// Tracks whether gtk-layer-shell was successfully initialized (Linux only).
-/// Used to skip layer-shell calls when the window is a regular fallback.
-#[cfg(target_os = "linux")]
-static LAYER_SHELL_ACTIVE: AtomicBool = AtomicBool::new(false);
-
 /// Update the cached overlay-enabled flag. Called from `lib.rs` at
 /// startup after settings load, and from `change_overlay_style_setting`
 /// whenever the user changes whether the overlay is shown.
@@ -551,8 +363,8 @@ pub fn emit_levels(app_handle: &AppHandle, levels: &[f32]) {
     // processes every event. Each event drives some kind of WebKit
     // C++ allocation that accumulates without bound (mechanism not
     // directly characterized; see issue #1279 for the investigation).
-    // For users with `overlay_style: none` (the Linux default) this skip
-    // eliminates the upstream driver of that accumulation.
+    // For users with `overlay_style: none` this skip eliminates the
+    // upstream driver of that accumulation.
     if !OVERLAY_ENABLED.load(Ordering::Relaxed) {
         return;
     }
