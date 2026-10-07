@@ -152,7 +152,6 @@ pub enum PasteMethod {
     None,
     ShiftInsert,
     CtrlShiftV,
-    ExternalScript,
 }
 
 /// How the transcribe shortcut's key events drive a recording.
@@ -235,18 +234,6 @@ impl ModelUnloadTimeout {
             _ => self.to_minutes().map(|m| m * 60),
         }
     }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum TypingTool {
-    #[default]
-    Auto,
-    Wtype,
-    Kwtype,
-    Dotool,
-    Ydotool,
-    Xdotool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
@@ -403,10 +390,6 @@ pub struct AppSettings {
     /// fixed delay. See `paste_tx`. macOS only.
     #[serde(default)]
     pub reliable_paste: bool,
-    #[serde(default = "default_typing_tool")]
-    pub typing_tool: TypingTool,
-    #[serde(default)]
-    pub external_script_path: Option<String>,
     #[serde(default = "default_filler_word_removal_enabled")]
     pub filler_word_removal_enabled: bool,
     #[serde(default)]
@@ -680,10 +663,6 @@ where
     }
 }
 
-fn default_typing_tool() -> TypingTool {
-    TypingTool::Auto
-}
-
 fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
     let mut changed = false;
     for provider in default_post_process_providers() {
@@ -830,8 +809,6 @@ pub fn get_default_settings() -> AppSettings {
         paste_delay_ms: default_paste_delay_ms(),
         paste_delay_after_ms: default_paste_delay_after_ms(),
         reliable_paste: false,
-        typing_tool: default_typing_tool(),
-        external_script_path: None,
         filler_word_removal_enabled: default_filler_word_removal_enabled(),
         custom_filler_words: None,
         transcribe_accelerator: TranscribeAcceleratorSetting::default(),

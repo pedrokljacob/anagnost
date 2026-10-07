@@ -168,7 +168,6 @@ pub fn get_cursor_position(app_handle: &AppHandle) -> Option<(i32, i32)> {
 
 /// Sends a Ctrl+V or Cmd+V paste command using platform-specific virtual key codes.
 /// This ensures the paste works regardless of keyboard layout (e.g., Russian, AZERTY, DVORAK).
-/// Note: On Wayland, this may not work - callers should check for Wayland and use alternative methods.
 ///
 /// `hold_ms` is how long the modifier stays held after the V click before being
 /// released. Most applications read the modifier from the V event's flags and
@@ -180,7 +179,7 @@ pub fn send_paste_ctrl_v(enigo: &mut Enigo, hold_ms: u64) -> Result<(), String> 
     // Platform-specific key definitions
     #[cfg(target_os = "macos")]
     let (modifier_key, v_key_code) = (Key::Meta, macos::command_v_key());
-    #[cfg(target_os = "linux")]
+    #[cfg(not(target_os = "macos"))]
     let (modifier_key, v_key_code) = (Key::Control, Key::Unicode('v'));
 
     // Press modifier + V
@@ -200,14 +199,13 @@ pub fn send_paste_ctrl_v(enigo: &mut Enigo, hold_ms: u64) -> Result<(), String> 
     Ok(())
 }
 
-/// Sends a Ctrl+Shift+V paste command.
-/// This is commonly used in terminal applications on Linux to paste without formatting.
-/// Note: On Wayland, this may not work - callers should check for Wayland and use alternative methods.
+/// Sends a Ctrl+Shift+V (Cmd+Shift+V on macOS) paste command, which many
+/// terminals and editors use to paste without formatting.
 pub fn send_paste_ctrl_shift_v(enigo: &mut Enigo, hold_ms: u64) -> Result<(), String> {
     // Platform-specific key definitions
     #[cfg(target_os = "macos")]
     let (modifier_key, v_key_code) = (Key::Meta, macos::command_v_key());
-    #[cfg(target_os = "linux")]
+    #[cfg(not(target_os = "macos"))]
     let (modifier_key, v_key_code) = (Key::Control, Key::Unicode('v'));
 
     // Press Ctrl/Cmd + Shift + V
@@ -233,9 +231,8 @@ pub fn send_paste_ctrl_shift_v(enigo: &mut Enigo, hold_ms: u64) -> Result<(), St
     Ok(())
 }
 
-/// Sends a Shift+Insert paste command (Linux only).
-/// This is more universal for terminal applications and legacy software.
-/// Note: On Wayland, this may not work - callers should check for Wayland and use alternative methods.
+/// Sends a Shift+Insert paste command, used by some terminal applications and
+/// legacy software.
 pub fn send_paste_shift_insert(enigo: &mut Enigo, hold_ms: u64) -> Result<(), String> {
     let insert_key_code = Key::Other(0x76); // XK_Insert (keycode 118 / 0x76, also used as fallback)
 

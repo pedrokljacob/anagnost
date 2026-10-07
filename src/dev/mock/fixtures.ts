@@ -111,8 +111,6 @@ export const defaultSettings = (): AppSettings => ({
   paste_delay_ms: 60,
   paste_delay_after_ms: 60,
   reliable_paste: false,
-  typing_tool: "auto",
-  external_script_path: null,
   filler_word_removal_enabled: true,
   custom_filler_words: null,
   transcribe_accelerator: "auto",
