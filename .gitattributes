@@ -1,1 +1,9 @@
 * text=auto eol=lf
+
+# Redesigned UI files are ours (DECISIONS.md): an upstream merge keeps our
+# version, and a Handy change worth having is ported by hand. Add a unit's
+# files here when it is marked done in REDESIGN.md. The driver is only
+# active after, once per clone: git config merge.ours.driver true
+src/styles/** merge=ours
+src/App.css merge=ours
+src/components/ui/** merge=ours
