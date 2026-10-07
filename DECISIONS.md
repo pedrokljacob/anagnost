@@ -13,6 +13,7 @@ Add a line when a decision starts affecting work. Delete it if reversed.
 - The UI is English only. Keep `react-i18next` and the lint rule so all UI text stays in `src/i18n/locales/en/translation.json`.
 - Not shipped: auto-updater, What's New, remote-control CLI flags and signals, keyboard-implementation choice in the UI, footer model selector, Chinese script conversion, translate-to-English, sound picker (Marimba only).
 - Kept on purpose: LLM post-processing, transcription history (text only, last 5 entries plus starred ones, no setting), duplicate-launch guard (single instance), both VAD backends, the full model catalog.
+- Also kept: the hidden Debug section (toggled with Cmd+Shift+D, no visible control) with all its diagnostics and tuning settings; Custom words. The Experimental switch goes: its settings (post-processing toggle, acceleration, keep mic open, VAD backend) become regular Advanced settings.
 - UI redesign in progress, tracked in `REDESIGN.md`.
 - UI look: native macOS first. Depart from it only where Pedro asks explicitly.
 - Theme follows the system; no in-app light/dark choice.

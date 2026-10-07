@@ -71,12 +71,14 @@ Pedro builds on the Mac at these points and reports back:
 
 Settle these before redesigning their screens:
 
-- [ ] Hidden debug and experimental settings: keep or remove.
-- [ ] Custom words: keep or remove.
+- [x] Hidden debug and experimental settings: Debug stays hidden behind
+      Cmd+Shift+D with everything in it; the Experimental switch goes and its
+      settings become regular Advanced settings.
+- [x] Custom words: kept.
 
-Already decided: history keeps text and drops audio (player, re-transcribe,
+Also decided: history keeps text and drops audio (player, re-transcribe,
 retention settings), so History is designed without them. LLM post-processing
-stays (`DECISIONS.md`), so it gets its screen.
+stays (`DECISIONS.md`), so it gets its screen. Phase 0 is done.
 
 ## Phase 1: foundations and building blocks (one at a time)
 
@@ -101,11 +103,12 @@ stays (`DECISIONS.md`), so it gets its screen.
       card, download progress, delete confirmation.
 - [ ] **History**: entry list, copy, star, delete, empty state (audio player
       and re-transcribe removed).
-- [ ] **Advanced**: app, output, transcription and experimental groups;
-      structure depends on Phase 0.
+- [ ] **Advanced**: app, output and transcription groups; the experimental
+      switch is dropped and its four settings are placed in those groups.
 - [ ] **Post-processing**: provider, API key, base URL, model, prompts,
       shortcut.
-- [ ] **Debug**: diagnostics, log viewer, onboarding preview (if kept).
+- [ ] **Debug**: diagnostics, log viewer, onboarding preview, tuning
+      settings; stays hidden behind Cmd+Shift+D.
 - [ ] **About**: version, folders, acknowledgements; theme selector removed
       (theme follows the system).
 - [ ] **Onboarding**: permissions step, model picker.
