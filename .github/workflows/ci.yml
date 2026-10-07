@@ -1,9 +1,10 @@
 name: CI
 
 # Runs the Linux test bench (see BUILD.md) on every push and pull request:
-# the frontend checks and the Rust tests as two parallel jobs. On main it
-# then builds the Apple Silicon app and publishes it as the rolling
-# `latest` pre-release; scripts/install-mac.sh installs it from there.
+# the frontend checks and the Rust tests as two parallel jobs. On main the
+# Apple Silicon app is built alongside them, and once all three pass it is
+# published as the rolling `latest` pre-release; scripts/install-mac.sh
+# installs it from there.
 
 on:
   push:
@@ -107,16 +108,19 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
           cache-bin: false
-          # Branch runs reuse main's cache; only main refreshes it.
+          # Branch runs reuse main's cache; only main refreshes it, and a
+          # failed run still saves the dependencies it built.
           save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
 
       # ort-sys reads ORT_CACHE_DIR without telling cargo, so a restored
       # target/ keeps its old build output and the link search path in it,
       # which a fresh runner does not have ("could not find native static
-      # library onnxruntime"). Dropping that output makes the build script
-      # run again and fetch the library (8 MB) into ORT_CACHE_DIR.
+      # library onnxruntime"). The cache save keeps the ORT_CACHE_DIR folder
+      # without its file, which also makes the script skip the download.
+      # Dropping both makes it run again and fetch the library (8 MB).
       - name: Refresh the ONNX Runtime download
-        run: rm -rf src-tauri/target/*/build/ort-sys-*
+        run: rm -rf src-tauri/target/*/build/ort-sys-* src-tauri/target/ort-cache
 
       # The BUILD.md "Linux test bench" list minus what only an AppImage
       # (patchelf) or a human (vulkan-tools) needs; xvfb runs the headless
@@ -161,14 +165,14 @@ jobs:
           git diff --exit-code -I 'laptop|battery|pmset|macOS' -I '^\s*\*\s*$' ../src/bindings.ts \
             || { echo "::error::src/bindings.ts is out of date; run the app once in debug and commit it"; exit 1; }
 
+  # Runs alongside the Linux jobs; only the publish job waits for them.
   build:
     name: Mac build
-    needs: [checks, test]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: macos-26
     timeout-minutes: 90
-    permissions:
-      contents: write
+    outputs:
+      build: ${{ steps.changes.outputs.build }}
     env:
       ASSET: anagnost-macos-arm64.dmg
       # Fails the build when the disk image grows past this. Raise it on
@@ -179,10 +183,11 @@ jobs:
         with:
           fetch-depth: 2
 
-      # A push that only touches documentation or the test suites would
-      # rebuild and republish an identical app. Skip the rest of the job; `latest` then keeps
-      # pointing at the last build that changed the app. Forced pushes and
-      # merges with more than one parent are always built.
+      # A push that only touches documentation, the test suites or the
+      # frontend checks would rebuild and republish an identical app. Skip
+      # the rest of the job; `latest` then keeps pointing at the last build
+      # that changed the app. Forced pushes and merges with more than one
+      # parent are always built.
       - name: Check for app changes
         id: changes
         run: |
@@ -194,7 +199,7 @@ jobs:
           fi
           changed=$(git diff --name-only "${{ github.event.before }}" "$GITHUB_SHA")
           if [ -z "$changed" ] \
-            || echo "$changed" | grep -qvE '(^|/)[^/]+\.md$|^LICENSE$|^\.gitignore$|^\.prettierignore$|^\.prettierrc$|^\.vscode/|^tests/'; then
+            || echo "$changed" | grep -qvE '(^|/)[^/]+\.md$|^LICENSE$|^\.gitignore$|^\.prettierignore$|^\.prettierrc$|^\.vscode/|^tests/|\.test\.ts$|^playwright\.config\.ts$|^eslint\.config\.js$|^scripts/check-'; then
             echo "build=true" >> "$GITHUB_OUTPUT"
           else
             echo "Only documentation changed; skipping the Mac build."
@@ -215,11 +220,12 @@ jobs:
           workspaces: "./src-tauri -> target"
           cache-bin: false
           save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
 
       # See the Rust job for why.
       - name: Refresh the ONNX Runtime download
         if: steps.changes.outputs.build == 'true'
-        run: rm -rf src-tauri/target/*/build/ort-sys-*
+        run: rm -rf src-tauri/target/*/build/ort-sys-* src-tauri/target/ort-cache
 
       - name: Install frontend dependencies
         if: steps.changes.outputs.build == 'true'
@@ -289,25 +295,56 @@ jobs:
           fi
 
       # latest.txt tells the install script the commit and the app bundle
-      # name without needing the GitHub API. The release is updated in
-      # place, never deleted, so the download URLs keep working throughout;
-      # latest.txt goes last so it never names a build not yet uploaded.
-      - name: Publish rolling release
+      # name without needing the GitHub API. The publish job uploads both
+      # once the Linux checks have passed.
+      - name: Stage the release files
         if: steps.changes.outputs.build == 'true'
+        run: |
+          mkdir -p release
+          cp src-tauri/target/release/bundle/dmg/*.dmg "release/$ASSET"
+          APP=$(echo src-tauri/target/release/bundle/macos/*.app)
+          printf '%s\n%s\n' "$GITHUB_SHA" "$(basename "$APP")" > release/latest.txt
+
+      - uses: actions/upload-artifact@v4
+        if: steps.changes.outputs.build == 'true'
+        with:
+          name: mac-build
+          path: release/
+          retention-days: 3
+          if-no-files-found: error
+
+  publish:
+    name: Publish rolling release
+    needs: [checks, test, build]
+    if: needs.build.outputs.build == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      ASSET: anagnost-macos-arm64.dmg
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: mac-build
+          path: release
+
+      # The release is updated in place, never deleted, so the download URLs
+      # keep working throughout; latest.txt goes last so it never names a
+      # build not yet uploaded.
+      - name: Publish rolling release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          cp src-tauri/target/release/bundle/dmg/*.dmg "$RUNNER_TEMP/$ASSET"
-          APP=$(echo src-tauri/target/release/bundle/macos/*.app)
-          printf '%s\n%s\n' "$GITHUB_SHA" "$(basename "$APP")" > "$RUNNER_TEMP/latest.txt"
           TITLE="Latest build (${GITHUB_SHA::7})"
           NOTES="Built from $GITHUB_SHA. Install or update with scripts/install-mac.sh (see BUILD.md)."
           if ! gh release view latest >/dev/null 2>&1; then
             gh release create latest --prerelease --target "$GITHUB_SHA" \
               --title "$TITLE" --notes "$NOTES"
           fi
-          gh release upload latest "$RUNNER_TEMP/$ASSET" --clobber
-          gh release upload latest "$RUNNER_TEMP/latest.txt" --clobber
+          gh release upload latest "release/$ASSET" --clobber
+          gh release upload latest "release/latest.txt" --clobber
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/latest" \
             -f sha="$GITHUB_SHA" -F force=true >/dev/null \
             || gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
