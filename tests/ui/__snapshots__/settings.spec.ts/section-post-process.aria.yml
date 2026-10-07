@@ -1,0 +1,29 @@
+- heading "Hotkey" [level=2]
+- heading "Post-Processing Hotkey" [level=3]
+- button "More information"
+- text: Option + Shift + Space
+- button:
+  - img
+- heading "API (OpenAI Compatible)" [level=2]
+- heading "Provider" [level=3]
+- button "More information"
+- button "OpenAI":
+  - text: ""
+  - img
+- heading "API Key" [level=3]
+- button "More information"
+- textbox "sk-..."
+- heading "Model" [level=3]
+- button "More information"
+- log
+- text: Type a model name
+- combobox
+- button "Refresh models"
+- heading "Prompt" [level=2]
+- heading "Selected Prompt" [level=3]
+- button "More information"
+- button "Select a prompt":
+  - text: ""
+  - img
+- button "Create New Prompt"
+- paragraph: Select a prompt above to view and edit its details.

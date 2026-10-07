@@ -1,0 +1,63 @@
+- heading "Debug" [level=2]
+- heading "Log Level" [level=3]
+- button "More information"
+- button "Debug":
+  - text: ""
+  - img
+- heading "Preview Onboarding" [level=3]
+- button "More information"
+- button "Permissions"
+- button "Model Selection"
+- heading "Word Correction Threshold" [level=3]
+- button "More information"
+- slider: /\d+\.\d+/
+- text: /\d+\.\d+/
+- button:
+  - img
+- heading "Paste Delay (Before)" [level=3]
+- button "More information"
+- slider: /\d+/
+- text: /\d+[hmsp]+/
+- button:
+  - img
+- heading "Paste Delay (After)" [level=3]
+- button "More information"
+- slider: /\d+/
+- text: /\d+[hmsp]+/
+- button:
+  - img
+- heading "Reliable Paste (Beta)" [level=3]
+- button "More information"
+- checkbox
+- heading "Hold Threshold" [level=3]
+- button "More information"
+- slider: /\d+/
+- text: /\d+[hmsp]+/
+- button:
+  - img
+- heading "Extra Recording Buffer" [level=3]
+- button "More information"
+- slider: "0"
+- text: /\d+[hmsp]+/
+- button:
+  - img
+- heading "Always-On Microphone" [level=3]
+- button "More information"
+- checkbox
+- heading "Clamshell Microphone" [level=3]
+- button "More information"
+- button "Default":
+  - text: ""
+  - img
+- button:
+  - img
+- paragraph: Keyboard Diagnostic
+- paragraph: Checks whether keyboard events reach Anagnost. Only event counts are recorded — never which keys you press.
+- button /Run \d+[hmsp]+ diagnostic/
+- heading "Live Logs" [level=3]
+- button "More information"
+- text: Live · 0 lines
+- button "Pause"
+- button "Copy" [disabled]
+- button "Clear" [disabled]
+- text: Waiting for logs… Entries appear here as the app emits them.

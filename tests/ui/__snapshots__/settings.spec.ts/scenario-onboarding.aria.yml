@@ -1,0 +1,10 @@
+- region "Notifications alt+T"
+- img
+- heading "Permissions Required" [level=2]
+- paragraph: Anagnost needs a couple of permissions to work properly.
+- heading "Microphone Access" [level=3]
+- paragraph: Required to hear your voice for transcription.
+- button "Grant Permission"
+- heading "Accessibility Access" [level=3]
+- paragraph: Required to type transcribed text into your applications.
+- button "Grant Permission"

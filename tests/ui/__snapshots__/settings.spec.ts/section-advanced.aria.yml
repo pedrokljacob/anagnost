@@ -1,0 +1,58 @@
+- heading "App" [level=2]
+- heading "Start Hidden" [level=3]
+- button "More information"
+- checkbox
+- heading "Launch on Startup" [level=3]
+- button "More information"
+- checkbox
+- heading "Show Menu Bar Icon" [level=3]
+- button "More information"
+- checkbox [checked]
+- heading "Overlay" [level=3]
+- button "More information"
+- button "Live":
+  - text: ""
+  - img
+- heading "Overlay Position" [level=3]
+- button "More information"
+- button "Bottom":
+  - text: ""
+  - img
+- heading "Unload Model" [level=3]
+- button "More information"
+- button "Select an option...":
+  - text: ""
+  - img
+- heading "Experimental Features" [level=3]
+- button "More information"
+- checkbox
+- heading "Output" [level=2]
+- heading "Paste Method" [level=3]
+- button "More information"
+- button "Clipboard (Cmd+V)":
+  - text: ""
+  - img
+- heading "Clipboard Handling" [level=3]
+- button "More information"
+- button "Don't Modify Clipboard":
+  - text: ""
+  - img
+- heading "Auto Submit" [level=3]
+- button "More information"
+- button "Off":
+  - text: ""
+  - img
+- heading "Transcription" [level=2]
+- heading "Voice Activity Detection" [level=3]
+- button "More information"
+- checkbox [checked]
+- heading "Remove Filler Words" [level=3]
+- button "More information"
+- checkbox [checked]
+- heading "Custom Words" [level=3]
+- button "More information"
+- textbox "Add a word"
+- button "Add" [disabled]
+- heading "Append Trailing Space" [level=3]
+- button "More information"
+- checkbox

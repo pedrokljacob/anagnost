@@ -1,0 +1,16 @@
+- heading "About" [level=2]
+- heading "Version" [level=3]
+- button "More information"
+- text: v0.9.8
+- heading "App Data Directory" [level=3]
+- button "More information"
+- text: /Users/you/Library/Application Support/com.pedrojacob.anagnost
+- button "Open"
+- heading "Log Directory" [level=3]
+- button "More information"
+- text: /Users/you/Library/Application Support/com.pedrojacob.anagnost/logs
+- button "Open"
+- heading "Acknowledgments" [level=2]
+- heading "ggml" [level=3]
+- button "More information"
+- text: Anagnost's local speech-to-text is built on transcribe.cpp and ggml. Thanks to the amazing work by Georgi Gerganov and contributors.
