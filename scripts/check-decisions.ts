@@ -241,6 +241,15 @@ expect(
   if (!/^\s*security set-keychain-settings "\$KEYCHAIN"$/m.test(ci)) {
     fail("ci.yml: the signing keychain must have no auto-lock timeout");
   }
+  if (
+    !/^\s*ORT_CACHE_DIR: \$\{\{ github\.workspace \}\}\/src-tauri\/target\//m.test(
+      ci,
+    )
+  ) {
+    fail(
+      "ci.yml: ORT_CACHE_DIR must stay inside target/ so cached builds can link ONNX Runtime",
+    );
+  }
   const dmg = ci.indexOf('upload latest "$RUNNER_TEMP/$ASSET" --clobber');
   const txt = ci.indexOf('upload latest "$RUNNER_TEMP/latest.txt" --clobber');
   if (dmg < 0 || txt < 0 || txt < dmg)
