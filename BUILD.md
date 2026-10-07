@@ -9,7 +9,9 @@ Linux is only a test bench for the Rust crate and the frontend (see
 `.github/workflows/ci.yml` runs the [Linux test bench](#linux-test-bench)
 checks on every push and on pull requests. On `main`, once they pass, it
 builds the app on a GitHub Apple Silicon runner and publishes it as the
-rolling `latest` pre-release. No local build is needed.
+rolling `latest` pre-release. No local build is needed. A push that only
+changes documentation skips the Mac build, so `latest` names the last
+commit that changed the app.
 
 Install or update it on the Mac (Apple Silicon, macOS 13 or later, from an
 administrator account) with the tools macOS ships with:
@@ -253,6 +255,9 @@ sudo apt install build-essential clang libclang-dev libevdev-dev libasound2-dev 
   librsvg2-dev patchelf cmake xvfb
 ```
 
+CI installs the same list without `vulkan-tools`, `patchelf` and `xvfb`,
+which only the headless run below needs.
+
 ### Full check
 
 Run after every Rust or frontend change. The first `cargo build` takes about
@@ -264,6 +269,23 @@ bun run build && bun run lint && bunx prettier --check . && bun run test:keyboar
 bun run check:model-languages
 (cd src-tauri && cargo build && cargo test)
 ```
+
+### Build size
+
+The dev profile (`src-tauri/Cargo.toml`) keeps line tables for the crate
+and no debuginfo for dependencies or build scripts, and the crate builds
+as `rlib` only. A `cargo build && cargo test` cycle then takes about
+3.7 GB under `src-tauri/target/`, down from 14.8 GB with the defaults,
+and `cargo build` and `cargo test` no longer recompile each other.
+Panics and backtraces still show file and line. For a session that needs
+local variables in the debugger, build with
+`CARGO_PROFILE_DEV_DEBUG=full cargo build`.
+
+Stale artifacts pile up only after `Cargo.lock`, feature or profile
+changes; file times are no guide, since cargo does not touch up-to-date
+units. Run `cargo clean` after such a change (the next build is cold,
+about ten minutes) or `cargo clean -p anagnost` to drop only the crate's
+own outputs.
 
 ### Headless transcription
 
