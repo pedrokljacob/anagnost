@@ -206,8 +206,7 @@ impl HistoryManager {
         self.cleanup_by_count(HISTORY_LIMIT)
     }
 
-    fn delete_entries(&self, ids: &[i64]) -> Result<usize> {
-        let conn = self.get_connection()?;
+    fn delete_entries_with_conn(conn: &Connection, ids: &[i64]) -> Result<usize> {
         let mut deleted_count = 0;
 
         for id in ids {
@@ -222,7 +221,10 @@ impl HistoryManager {
 
     fn cleanup_by_count(&self, limit: usize) -> Result<()> {
         let conn = self.get_connection()?;
+        Self::cleanup_by_count_with_conn(&conn, limit)
+    }
 
+    fn cleanup_by_count_with_conn(conn: &Connection, limit: usize) -> Result<()> {
         // Get all entries that are not saved, ordered by timestamp desc
         let mut stmt = conn.prepare(
             "SELECT id FROM transcription_history WHERE saved = 0 ORDER BY timestamp DESC",
@@ -237,7 +239,7 @@ impl HistoryManager {
 
         if entries.len() > limit {
             let entries_to_delete = &entries[limit..];
-            let deleted_count = self.delete_entries(entries_to_delete)?;
+            let deleted_count = Self::delete_entries_with_conn(conn, entries_to_delete)?;
 
             if deleted_count > 0 {
                 debug!("Cleaned up {} old history entries by count", deleted_count);
@@ -431,6 +433,16 @@ mod tests {
     }
 
     fn insert_entry(conn: &Connection, timestamp: i64, text: &str, post_processed: Option<&str>) {
+        insert_entry_saved(conn, timestamp, text, post_processed, false);
+    }
+
+    fn insert_entry_saved(
+        conn: &Connection,
+        timestamp: i64,
+        text: &str,
+        post_processed: Option<&str>,
+        saved: bool,
+    ) {
         conn.execute(
             "INSERT INTO transcription_history (
                 timestamp,
@@ -443,7 +455,7 @@ mod tests {
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 timestamp,
-                false,
+                saved,
                 format!("Recording {}", timestamp),
                 text,
                 post_processed,
@@ -488,6 +500,56 @@ mod tests {
 
         assert_eq!(entry.timestamp, 100);
         assert_eq!(entry.transcription_text, "completed");
+    }
+
+    fn remaining_texts(conn: &Connection) -> Vec<String> {
+        let mut stmt = conn
+            .prepare("SELECT transcription_text FROM transcription_history ORDER BY timestamp")
+            .expect("prepare query");
+        stmt.query_map([], |row| row.get::<_, String>(0))
+            .expect("query texts")
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .expect("collect texts")
+    }
+
+    #[test]
+    fn cleanup_keeps_newest_unsaved_and_all_starred() {
+        let conn = setup_conn();
+        insert_entry_saved(&conn, 1, "starred-1", None, true);
+        insert_entry_saved(&conn, 2, "starred-2", None, true);
+        for i in 1..=8 {
+            insert_entry(&conn, 100 + i, &format!("unsaved-{i}"), None);
+        }
+
+        HistoryManager::cleanup_by_count_with_conn(&conn, HISTORY_LIMIT).expect("cleanup");
+
+        assert_eq!(
+            remaining_texts(&conn),
+            vec![
+                "starred-1",
+                "starred-2",
+                "unsaved-4",
+                "unsaved-5",
+                "unsaved-6",
+                "unsaved-7",
+                "unsaved-8",
+            ]
+        );
+    }
+
+    #[test]
+    fn cleanup_limit_is_five_unsaved_entries() {
+        let conn = setup_conn();
+        for i in 1..=6 {
+            insert_entry(&conn, i, &format!("unsaved-{i}"), None);
+        }
+
+        HistoryManager::cleanup_by_count_with_conn(&conn, HISTORY_LIMIT).expect("cleanup");
+        assert_eq!(remaining_texts(&conn).len(), 5);
+
+        // At the limit nothing is pruned.
+        HistoryManager::cleanup_by_count_with_conn(&conn, HISTORY_LIMIT).expect("cleanup");
+        assert_eq!(remaining_texts(&conn).len(), 5);
     }
 
     #[test]
