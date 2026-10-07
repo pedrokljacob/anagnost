@@ -17,6 +17,8 @@
     "test": "bun test",
     "check": "bun run lint && bun run format:check && bun run test && bun run check:decisions && bun run check:model-languages",
     "check:decisions": "bun scripts/check-decisions.ts",
+    "test:ui": "playwright test",
+    "test:ui:update": "playwright test --update-snapshots",
     "check:model-languages": "bun scripts/check-model-language-coverage.ts"
   },
   "dependencies": {
@@ -34,6 +36,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.0-alpha-1789764292000",
     "@tailwindcss/vite": "^4.1.16",
     "@tauri-apps/cli": "^2.11.0",
     "@types/bun": "^1.4.2",

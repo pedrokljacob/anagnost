@@ -20,6 +20,10 @@ Thumbs.db
 # Git worktrees for parallel work (see AGENTS.md)
 .worktrees/
 
+# Playwright output (see "UI contract tests" in BUILD.md)
+test-results/
+playwright-report/
+
 # --- Inherited from upstream Handy ---
 
 # Node / Vite

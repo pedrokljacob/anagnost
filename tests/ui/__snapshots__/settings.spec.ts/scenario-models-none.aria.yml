@@ -1,0 +1,496 @@
+- heading "Transcription Models" [level=1]
+- paragraph: Select a transcription model or download additional models. Different models offer varying levels of accuracy and speed.
+- textbox "Search models by name…"
+- heading "Downloaded Models" [level=2]
+- button "Rescan for models copied into the app's models folder or Hugging Face cache"
+- button "Filter models that support live streaming transcription"
+- button "All Languages"
+- heading "Available to Download" [level=2]
+- button /Parakeet Unified EN [\d,.]+[bkmBKM]+ Recommended Fast, accurate live English transcription accuracy speed English only Streaming \d+ MB Q8_0/:
+  - heading /Parakeet Unified EN [\d,.]+[bkmBKM]+/ [level=3]
+  - text: ""
+  - paragraph: Fast, accurate live English transcription
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Nemotron Streaming 3\.5 Recommended Live multilingual transcription across \d+ languages accuracy speed \d+ languages Streaming \d+ MB Q8_0/:
+  - heading "Nemotron Streaming 3.5" [level=3]
+  - text: ""
+  - paragraph: /Live multilingual transcription across \d+ languages/
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Canary [\d,.]+[bkmBKM]+ Flash Recommended Tiny and instant, runs well on any hardware accuracy speed 4 languages \d+ MB Q8_0/:
+  - heading /Canary [\d,.]+[bkmBKM]+ Flash/ [level=3]
+  - text: ""
+  - paragraph: Tiny and instant, runs well on any hardware
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Cohere Transcribe Recommended Highest accuracy, \d+ languages, slower accuracy speed \d+ languages 1\.6 GB Q5_K_M/:
+  - heading "Cohere Transcribe" [level=3]
+  - text: ""
+  - paragraph: /Highest accuracy, \d+ languages, slower/
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Whisper Medium Recommended Broadest language, but may run a bit slow accuracy speed \d+ languages \d+ MB Q8_0/:
+  - heading "Whisper Medium" [level=3]
+  - text: ""
+  - paragraph: Broadest language, but may run a bit slow
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Voxtral Mini [\d,.]+[bkmBKM]+ Realtime Live multilingual, excellent on powerful machines accuracy speed \d+ languages Streaming 3\.1 GB Q5_K_M/:
+  - heading /Voxtral Mini [\d,.]+[bkmBKM]+ Realtime/ [level=3]
+  - paragraph: Live multilingual, excellent on powerful machines
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Parakeet TDT [\d,.]+[bkmBKM]+ v3 Fast and accurate\. Supports \d+ European languages accuracy speed \d+ languages \d+ MB Q8_0/:
+  - heading /Parakeet TDT [\d,.]+[bkmBKM]+ v3/ [level=3]
+  - paragraph: /Fast and accurate\. Supports \d+ European languages/
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Parakeet TDT [\d,.]+[bkmBKM]+ v2 English only\. The best model for English speakers accuracy speed English only \d+ MB Q8_0/:
+  - heading /Parakeet TDT [\d,.]+[bkmBKM]+ v2/ [level=3]
+  - paragraph: English only. The best model for English speakers
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Qwen3-ASR [\d,.]+[bkmBKM]+ Excellent multilingual model accuracy speed \d+ languages \d+ MB Q8_0/:
+  - heading /Qwen3-ASR [\d,.]+[bkmBKM]+/ [level=3]
+  - paragraph: Excellent multilingual model
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Fun-ASR Nano Multilingual A tiny multilingual model accuracy speed \d+ languages \d+ MB Q8_0/:
+  - heading "Fun-ASR Nano Multilingual" [level=3]
+  - paragraph: A tiny multilingual model
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Breeze-ASR-\d+ Optimized for Taiwanese Mandarin\. Code-switching support\. accuracy speed 2 languages 1\.1 GB Q5_K_M/:
+  - heading /Breeze-ASR-\d+/ [level=3]
+  - paragraph: Optimized for Taiwanese Mandarin. Code-switching support.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Canary [\d,.]+[bkmBKM]+ 4-language speech-to-text with translation\. accuracy speed 4 languages \d+ MB Q5_K_M/:
+  - heading /Canary [\d,.]+[bkmBKM]+/ [level=3]
+  - paragraph: 4-language speech-to-text with translation.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Canary [\d,.]+[bkmBKM]+ Flash 4-language speech-to-text with translation\. accuracy speed 4 languages \d+ MB Q5_K_M/:
+  - heading /Canary [\d,.]+[bkmBKM]+ Flash/ [level=3]
+  - paragraph: 4-language speech-to-text with translation.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Canary [\d,.]+[bkmBKM]+ v2 \d+-language speech-to-text with translation\. accuracy speed \d+ languages \d+ MB Q5_K_M/:
+  - heading /Canary [\d,.]+[bkmBKM]+ v2/ [level=3]
+  - paragraph: /\d+-language speech-to-text with translation\./
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Canary-Qwen [\d,.]+[bkmBKM]+ English speech-to-text\. accuracy speed English only 1\.8 GB Q5_K_M/:
+  - heading /Canary-Qwen [\d,.]+[bkmBKM]+/ [level=3]
+  - paragraph: English speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button "Cohere Transcribe 2-language speech-to-text. accuracy speed 2 languages 1.6 GB Q5_K_M":
+  - heading "Cohere Transcribe" [level=3]
+  - paragraph: 2-language speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Fun-ASR Nano 3-language speech-to-text\. accuracy speed 3 languages \d+ MB Q8_0/:
+  - heading "Fun-ASR Nano" [level=3]
+  - paragraph: 3-language speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /GigaAM v3 CTC Russian speech-to-text with token-level timestamps\. accuracy speed Russian only \d+ MB Q8_0/:
+  - heading "GigaAM v3 CTC" [level=3]
+  - paragraph: Russian speech-to-text with token-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /GigaAM v3 E2E-CTC Russian speech-to-text with token-level timestamps\. accuracy speed Russian only \d+ MB Q8_0/:
+  - heading "GigaAM v3 E2E-CTC" [level=3]
+  - paragraph: Russian speech-to-text with token-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /GigaAM v3 E2E-RNN-T Russian speech-to-text with token-level timestamps\. accuracy speed Russian only \d+ MB Q8_0/:
+  - heading "GigaAM v3 E2E-RNN-T" [level=3]
+  - paragraph: Russian speech-to-text with token-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /GigaAM v3 RNN-T Russian speech-to-text with token-level timestamps\. accuracy speed Russian only \d+ MB Q8_0/:
+  - heading "GigaAM v3 RNN-T" [level=3]
+  - paragraph: Russian speech-to-text with token-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Granite Speech 4\.0 [\d,.]+[bkmBKM]+ 6-language speech-to-text with translation\. accuracy speed 6 languages 1\.7 GB Q5_K_M/:
+  - heading /Granite Speech 4\.0 [\d,.]+[bkmBKM]+/ [level=3]
+  - paragraph: 6-language speech-to-text with translation.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Granite Speech 4\.1 [\d,.]+[bkmBKM]+ 6-language speech-to-text with translation\. accuracy speed 6 languages 1\.7 GB Q5_K_M/:
+  - heading /Granite Speech 4\.1 [\d,.]+[bkmBKM]+/ [level=3]
+  - paragraph: 6-language speech-to-text with translation.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Granite Speech 4\.1 [\d,.]+[bkmBKM]+ NAR 5-language speech-to-text\. accuracy speed 5 languages 1\.7 GB Q5_K_M/:
+  - heading /Granite Speech 4\.1 [\d,.]+[bkmBKM]+ NAR/ [level=3]
+  - paragraph: 5-language speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Granite Speech 4\.1 [\d,.]+[bkmBKM]+ Plus 5-language speech-to-text with word-level timestamps\. accuracy speed 5 languages 1\.6 GB Q5_K_M/:
+  - heading /Granite Speech 4\.1 [\d,.]+[bkmBKM]+ Plus/ [level=3]
+  - paragraph: 5-language speech-to-text with word-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /MedASR English speech-to-text with token-level timestamps\. accuracy speed English only \d+ MB Q8_0/:
+  - heading "MedASR" [level=3]
+  - paragraph: English speech-to-text with token-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Base English speech-to-text\. accuracy speed English only \d+\.\d+ MB Q8_0/:
+  - heading "Moonshine Base" [level=3]
+  - paragraph: English speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Base \(Arabic\) Arabic speech-to-text\. accuracy speed Arabic only \d+\.\d+ MB Q8_0/:
+  - heading "Moonshine Base (Arabic)" [level=3]
+  - paragraph: Arabic speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Base \(Chinese\) Chinese speech-to-text\. accuracy speed Chinese \(Mandarin\) only \d+\.\d+ MB Q8_0/:
+  - heading "Moonshine Base (Chinese)" [level=3]
+  - paragraph: Chinese speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Base \(Japanese\) Japanese speech-to-text\. accuracy speed Japanese only \d+\.\d+ MB Q8_0/:
+  - heading "Moonshine Base (Japanese)" [level=3]
+  - paragraph: Japanese speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Base \(Korean\) Korean speech-to-text\. accuracy speed Korean only \d+\.\d+ MB Q8_0/:
+  - heading "Moonshine Base (Korean)" [level=3]
+  - paragraph: Korean speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Base \(Ukrainian\) Ukrainian speech-to-text\. accuracy speed Ukrainian only \d+\.\d+ MB Q8_0/:
+  - heading "Moonshine Base (Ukrainian)" [level=3]
+  - paragraph: Ukrainian speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Base \(Vietnamese\) Vietnamese speech-to-text\. accuracy speed Vietnamese only \d+\.\d+ MB Q8_0/:
+  - heading "Moonshine Base (Vietnamese)" [level=3]
+  - paragraph: Vietnamese speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Streaming Medium English speech-to-text with streaming\. accuracy speed English only Streaming \d+ MB Q8_0/:
+  - heading "Moonshine Streaming Medium" [level=3]
+  - paragraph: English speech-to-text with streaming.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Streaming Small English speech-to-text with streaming\. accuracy speed English only Streaming \d+ MB Q8_0/:
+  - heading "Moonshine Streaming Small" [level=3]
+  - paragraph: English speech-to-text with streaming.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Streaming Tiny English speech-to-text with streaming\. accuracy speed English only Streaming \d+\.\d+ MB Q8_0/:
+  - heading "Moonshine Streaming Tiny" [level=3]
+  - paragraph: English speech-to-text with streaming.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Tiny English speech-to-text\. accuracy speed English only \d+\.\d+ MB Q8_0/:
+  - heading "Moonshine Tiny" [level=3]
+  - paragraph: English speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Tiny \(Arabic\) Arabic speech-to-text\. accuracy speed Arabic only \d+\.\d+ MB Q8_0/:
+  - heading "Moonshine Tiny (Arabic)" [level=3]
+  - paragraph: Arabic speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Tiny \(Chinese\) Chinese speech-to-text\. accuracy speed Chinese \(Mandarin\) only \d+\.\d+ MB Q8_0/:
+  - heading "Moonshine Tiny (Chinese)" [level=3]
+  - paragraph: Chinese speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Tiny \(Japanese\) Japanese speech-to-text\. accuracy speed Japanese only \d+\.\d+ MB Q8_0/:
+  - heading "Moonshine Tiny (Japanese)" [level=3]
+  - paragraph: Japanese speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Tiny \(Korean\) Korean speech-to-text\. accuracy speed Korean only \d+\.\d+ MB Q8_0/:
+  - heading "Moonshine Tiny (Korean)" [level=3]
+  - paragraph: Korean speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Tiny \(Ukrainian\) Ukrainian speech-to-text\. accuracy speed Ukrainian only \d+\.\d+ MB Q8_0/:
+  - heading "Moonshine Tiny (Ukrainian)" [level=3]
+  - paragraph: Ukrainian speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Moonshine Tiny \(Vietnamese\) Vietnamese speech-to-text\. accuracy speed Vietnamese only \d+\.\d+ MB Q8_0/:
+  - heading "Moonshine Tiny (Vietnamese)" [level=3]
+  - paragraph: Vietnamese speech-to-text.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /MOSS-Transcribe-Diarize [\d,.]+[bkmBKM]+ 2-language speech-to-text with segment-level timestamps\. accuracy speed 2 languages \d+ MB Q8_0/:
+  - heading /MOSS-Transcribe-Diarize [\d,.]+[bkmBKM]+/ [level=3]
+  - paragraph: 2-language speech-to-text with segment-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Multitalker Parakeet Streaming EN English speech-to-text with streaming, token-level timestamps\. accuracy speed English only Streaming \d+ MB Q8_0/:
+  - heading "Multitalker Parakeet Streaming EN" [level=3]
+  - paragraph: English speech-to-text with streaming, token-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Nemotron Speech Streaming EN English speech-to-text with streaming, token-level timestamps\. accuracy speed English only Streaming \d+ MB Q8_0/:
+  - heading "Nemotron Speech Streaming EN" [level=3]
+  - paragraph: English speech-to-text with streaming, token-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Parakeet CTC [\d,.]+[bkmBKM]+ English speech-to-text with token-level timestamps\. accuracy speed English only \d+ MB Q8_0/:
+  - heading /Parakeet CTC [\d,.]+[bkmBKM]+/ [level=3]
+  - paragraph: English speech-to-text with token-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Parakeet CTC [\d,.]+[bkmBKM]+ English speech-to-text with token-level timestamps\. accuracy speed English only \d+ MB Q5_K_M/:
+  - heading /Parakeet CTC [\d,.]+[bkmBKM]+/ [level=3]
+  - paragraph: English speech-to-text with token-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Parakeet RNN-T [\d,.]+[bkmBKM]+ English speech-to-text with token-level timestamps\. accuracy speed English only \d+ MB Q8_0/:
+  - heading /Parakeet RNN-T [\d,.]+[bkmBKM]+/ [level=3]
+  - paragraph: English speech-to-text with token-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Parakeet RNN-T [\d,.]+[bkmBKM]+ English speech-to-text with token-level timestamps\. accuracy speed English only \d+ MB Q5_K_M/:
+  - heading /Parakeet RNN-T [\d,.]+[bkmBKM]+/ [level=3]
+  - paragraph: English speech-to-text with token-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Parakeet TDT [\d,.]+[bkmBKM]+ primeLine \(German-tuned\) \d+-language speech-to-text with auto language detection, token-level timestamps\. accuracy speed \d+ languages \d+ MB Q8_0/:
+  - heading /Parakeet TDT [\d,.]+[bkmBKM]+ primeLine \(German-tuned\)/ [level=3]
+  - paragraph: /\d+-language speech-to-text with auto language detection, token-level timestamps\./
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Parakeet TDT [\d,.]+[bkmBKM]+ English speech-to-text with token-level timestamps\. accuracy speed English only \d+ MB Q5_K_M/:
+  - heading /Parakeet TDT [\d,.]+[bkmBKM]+/ [level=3]
+  - paragraph: English speech-to-text with token-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Parakeet TDT-CTC [\d,.]+[bkmBKM]+ English speech-to-text with token-level timestamps\. accuracy speed English only \d+ MB Q5_K_M/:
+  - heading /Parakeet TDT-CTC [\d,.]+[bkmBKM]+/ [level=3]
+  - paragraph: English speech-to-text with token-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Parakeet TDT-CTC [\d,.]+[bkmBKM]+ English speech-to-text with token-level timestamps\. accuracy speed English only \d+ MB Q8_0/:
+  - heading /Parakeet TDT-CTC [\d,.]+[bkmBKM]+/ [level=3]
+  - paragraph: English speech-to-text with token-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Qwen3-ASR [\d,.]+[bkmBKM]+ \d+-language speech-to-text with auto language detection\. accuracy speed \d+ languages 1\.4 GB Q5_K_M/:
+  - heading /Qwen3-ASR [\d,.]+[bkmBKM]+/ [level=3]
+  - paragraph: /\d+-language speech-to-text with auto language detection\./
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /SenseVoice Small 5-language speech-to-text with auto language detection\. accuracy speed 5 languages \d+ MB Q8_0/:
+  - heading "SenseVoice Small" [level=3]
+  - paragraph: 5-language speech-to-text with auto language detection.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Voxtral Mini [\d,.]+[bkmBKM]+ 8-language speech-to-text with translation, auto language detection\. accuracy speed 8 languages 3\.2 GB Q5_K_M/:
+  - heading /Voxtral Mini [\d,.]+[bkmBKM]+/ [level=3]
+  - paragraph: 8-language speech-to-text with translation, auto language detection.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Voxtral Small [\d,.]+[bkmBKM]+ 8-language speech-to-text with translation, auto language detection\. accuracy speed 8 languages \d+ GB Q5_K_M/:
+  - heading /Voxtral Small [\d,.]+[bkmBKM]+/ [level=3]
+  - paragraph: 8-language speech-to-text with translation, auto language detection.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Whisper Base \d+-language speech-to-text with translation, auto language detection, segment-level timestamps\. accuracy speed \d+ languages \d+\.\d+ MB Q8_0/:
+  - heading "Whisper Base" [level=3]
+  - paragraph: /\d+-language speech-to-text with translation, auto language detection, segment-level timestamps\./
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Whisper Base \(English\) English speech-to-text with segment-level timestamps\. accuracy speed English only \d+\.\d+ MB Q8_0/:
+  - heading "Whisper Base (English)" [level=3]
+  - paragraph: English speech-to-text with segment-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Whisper Large \d+-language speech-to-text with translation, auto language detection, segment-level timestamps\. accuracy speed \d+ languages 1\.1 GB Q5_K_M/:
+  - heading "Whisper Large" [level=3]
+  - paragraph: /\d+-language speech-to-text with translation, auto language detection, segment-level timestamps\./
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Whisper Large v2 \d+-language speech-to-text with translation, auto language detection, segment-level timestamps\. accuracy speed \d+ languages 1\.1 GB Q5_K_M/:
+  - heading "Whisper Large v2" [level=3]
+  - paragraph: /\d+-language speech-to-text with translation, auto language detection, segment-level timestamps\./
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Whisper Large v3 \d+-language speech-to-text with translation, auto language detection, segment-level timestamps\. accuracy speed \d+ languages 1\.1 GB Q5_K_M/:
+  - heading "Whisper Large v3" [level=3]
+  - paragraph: /\d+-language speech-to-text with translation, auto language detection, segment-level timestamps\./
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Whisper Large v3 Turbo \d+-language speech-to-text with auto language detection, segment-level timestamps\. accuracy speed \d+ languages \d+ MB Q8_0/:
+  - heading "Whisper Large v3 Turbo" [level=3]
+  - paragraph: /\d+-language speech-to-text with auto language detection, segment-level timestamps\./
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Whisper Medium \(English\) English speech-to-text with segment-level timestamps\. accuracy speed English only \d+ MB Q8_0/:
+  - heading "Whisper Medium (English)" [level=3]
+  - paragraph: English speech-to-text with segment-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Whisper Small \d+-language speech-to-text with translation, auto language detection, segment-level timestamps\. accuracy speed \d+ languages \d+ MB Q8_0/:
+  - heading "Whisper Small" [level=3]
+  - paragraph: /\d+-language speech-to-text with translation, auto language detection, segment-level timestamps\./
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Whisper Small \(English\) English speech-to-text with segment-level timestamps\. accuracy speed English only \d+ MB Q8_0/:
+  - heading "Whisper Small (English)" [level=3]
+  - paragraph: English speech-to-text with segment-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Whisper Tiny \d+-language speech-to-text with translation, auto language detection, segment-level timestamps\. accuracy speed \d+ languages \d+\.\d+ MB Q8_0/:
+  - heading "Whisper Tiny" [level=3]
+  - paragraph: /\d+-language speech-to-text with translation, auto language detection, segment-level timestamps\./
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""
+- button /Whisper Tiny \(English\) English speech-to-text with segment-level timestamps\. accuracy speed English only \d+\.\d+ MB Q8_0/:
+  - heading "Whisper Tiny (English)" [level=3]
+  - paragraph: English speech-to-text with segment-level timestamps.
+  - paragraph: accuracy
+  - paragraph: speed
+  - separator
+  - text: ""

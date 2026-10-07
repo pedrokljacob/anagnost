@@ -1,0 +1,43 @@
+- paragraph: 1Password may be blocking 1 shortcut
+- button "Dismiss"
+- heading "General" [level=2]
+- heading "Transcribe Shortcut" [level=3]
+- button "More information"
+- text: Option + Space
+- button:
+  - img
+- heading "Shortcut Behavior" [level=3]
+- button "More information"
+- button "Auto":
+  - text: ""
+  - img
+- heading "Cancel Shortcut" [level=3]
+- button "More information"
+- text: Escape
+- button:
+  - img
+- heading "Sound" [level=2]
+- heading "Microphone" [level=3]
+- button "More information"
+- button "Default":
+  - text: ""
+  - img
+- button:
+  - img
+- heading "Mute While Recording" [level=3]
+- button "More information"
+- checkbox
+- heading "Audio Feedback" [level=3]
+- button "More information"
+- checkbox
+- heading "Output Device" [level=3]
+- button "More information"
+- button "Default" [disabled]:
+  - text: ""
+  - img
+- button [disabled]:
+  - img
+- heading "Volume" [level=3]
+- button "More information"
+- slider [disabled]: "1"
+- text: /\d+%/

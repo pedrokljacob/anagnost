@@ -1,0 +1,21 @@
+- heading "History" [level=2]
+- paragraph: /March \d+, \d+ at \d+:\d+ AM/
+- button "Copy transcription to clipboard"
+- button "Save transcription"
+- button "Delete entry"
+- paragraph: Remind me to send the quarterly numbers to Ana before Friday.
+- paragraph: /March \d+, \d+ at \d+:\d+ AM/
+- button "Copy transcription to clipboard"
+- button "Remove from saved"
+- button "Delete entry"
+- paragraph: um so the idea is that we we ship the beta next week and then gather feedback
+- paragraph: /March \d+, \d+ at \d+:\d+ AM/
+- button "Copy transcription to clipboard"
+- button "Save transcription"
+- button "Delete entry"
+- paragraph: This is a much longer dictation to check how the history list handles text that wraps over several lines. It keeps going so the card has to grow, and it should still be easy to scan, copy, and delete without the layout breaking apart.
+- paragraph: /March 6, \d+ at \d+:\d+ AM/
+- button "Copy transcription to clipboard"
+- button "Save transcription"
+- button "Delete entry"
+- paragraph: Hello world.
