@@ -7,7 +7,6 @@ or decided (decisions go to `DECISIONS.md`).
 
 - Linux code: strip what the test bench doesn't need (cfg blocks in `clipboard.rs`, `overlay.rs`, audio, tray; Linux typing tools and extra paste methods, whose `typing_tool` and `external_script_path` settings no longer have UI; CUDA/DirectML/ROCm; Colored tray theme). Keep the crate compiling on Linux. Also check shortcut recording on Linux (the UI always records through handy-keys; the Linux default backend is Tauri).
 - Legacy ONNX engines: remove `transcribe-rs` engines and the hardcoded legacy model table. Check the 5 old Whisper entries in that table.
-- Onboarding loop: on a first run with permissions already granted (e.g. after a reinstall), the permission check effect in `AccessibilityOnboarding.tsx` re-runs on every parent render and never settles. Seen in the UI preview; confirm on the Mac.
 
 ## Decide later
 

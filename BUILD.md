@@ -130,9 +130,16 @@ reference:
 touch /tmp/anagnost-mark
 ```
 
-Then install, grant the permissions, download a model, dictate once, turn
-"Launch on Startup" on and off, quit, and uninstall with `--app`. Finally
-compare:
+Then install and confirm the installed copy carries the CI certificate
+(an ad-hoc build prints `Signature=adhoc` and no `Authority` line):
+
+```bash
+codesign -dvv /Applications/Anagnost.app 2>&1 | grep -E '^(Authority|Signature)'
+```
+
+Expected: `Signature size=<n>` and `Authority=Anagnost Signing`. Next grant
+the permissions, download a model, dictate once, turn "Launch on Startup"
+on and off, quit, and uninstall with `--app`. Finally compare:
 
 ```bash
 find ~/Library /Applications /tmp "$TMPDIR" -newer /tmp/anagnost-mark \
