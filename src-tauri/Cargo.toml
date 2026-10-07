@@ -8,7 +8,20 @@ license = "MIT"
 default-run = "anagnost"
 
 [profile.dev]
-incremental = true # Compile your binary in smaller steps.
+# Line tables keep file:line in panics and backtraces; full DWARF for the
+# crate and its dependencies made a debug target dir 8-14 GB. Set
+# CARGO_PROFILE_DEV_DEBUG=full for a session that needs local variables.
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+# Build scripts and proc macros. Set explicitly: Cargo's default ("false
+# when possible") re-enables debuginfo for the host-side tauri chain when
+# `cargo test` adds a shared dependency, which rebuilt it on every
+# build/test switch.
+[profile.dev.build-override]
+debug = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -17,7 +30,9 @@ incremental = true # Compile your binary in smaller steps.
 # to make the lib name unique and wouldn't conflict with the bin name.
 # See https://github.com/rust-lang/cargo/issues/8519
 name = "anagnost_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# rlib only: staticlib and cdylib exist for tauri mobile targets, which this
+# app does not build, and each cost about 2 GB per debug build.
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
