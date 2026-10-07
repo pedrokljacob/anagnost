@@ -34,6 +34,13 @@ name = "anagnost_lib"
 # app does not build, and each cost about 2 GB per debug build.
 crate-type = ["rlib"]
 
+[[bin]]
+name = "anagnost"
+path = "src/main.rs"
+# main.rs holds no tests; without this, `cargo test` links a 140 MB test
+# binary for it on every run.
+test = false
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 serde_json = "1"
@@ -147,7 +154,9 @@ tempfile = "3"
 tokio = { version = "1.43.0", features = ["macros", "net", "io-util", "sync", "time", "rt-multi-thread"] }
 
 [profile.release]
-lto = true
-codegen-units = 1
+# Thin LTO with the default codegen units: the transcription hot paths are
+# in ggml and ONNX Runtime, which Rust LTO never reaches, and fat LTO with one
+# codegen unit kept the Mac build on a single core for six minutes.
+lto = "thin"
 strip = true
 panic = "unwind"

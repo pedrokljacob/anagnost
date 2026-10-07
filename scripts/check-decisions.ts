@@ -106,6 +106,21 @@ expect(
   "build script debuginfo",
 );
 expect("src-tauri/Cargo.toml", /^crate-type = \["rlib"\]$/m, "rlib only");
+// Release profile: thin LTO, no codegen-units pin (see the Cargo.toml note).
+expect("src-tauri/Cargo.toml", /^lto = "thin"$/m, "thin LTO");
+expect(
+  "src-tauri/Cargo.toml",
+  /^codegen-units/m,
+  "no codegen-units pin, it serialises the release build",
+  false,
+);
+// main.rs has no tests, so its test binary is not built. Keep both true.
+expect(
+  "src-tauri/Cargo.toml",
+  /^\[\[bin\]\]\s*\n(.*\n)*?test = false$/m,
+  "bin test binary skipped",
+);
+expect("src-tauri/src/main.rs", /cfg\(test\)/, "main.rs has no tests", false);
 
 // DECISIONS: English only, with react-i18next and the lint rule kept.
 {
